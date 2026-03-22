@@ -61,6 +61,7 @@ export function GraphCanvas() {
   const moveNode = useWorldStore((state) => state.moveNode)
   const createEdge = useWorldStore((state) => state.createEdge)
   const deleteSelectedGraphItem = useWorldStore((state) => state.deleteSelectedGraphItem)
+  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({})
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -84,6 +85,10 @@ export function GraphCanvas() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [deleteSelectedGraphItem])
+
+  useEffect(() => {
+    setDragPositions({})
+  }, [currentVersion?.id])
 
   if (!currentVersion) {
     return (
@@ -117,7 +122,7 @@ export function GraphCanvas() {
   const nodes: OntologyFlowNode[] = currentVersion.ontology.nodes.map((node) => ({
     id: node.id,
     type: 'ontology',
-    position: node.position,
+    position: dragPositions[node.id] ?? node.position,
     selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
     data: {
       node,
@@ -195,7 +200,20 @@ export function GraphCanvas() {
               onNodeClick={(_, node) => selectNode(node.id)}
               onEdgeClick={(_, edge) => selectEdge(edge.id)}
               onPaneClick={() => clearSelection()}
-              onNodeDragStop={(_, node) => void moveNode(node.id, node.position)}
+              onNodeDrag={(_, node) => {
+                setDragPositions((current) => ({
+                  ...current,
+                  [node.id]: node.position,
+                }))
+              }}
+              onNodeDragStop={(_, node) => {
+                setDragPositions((current) => {
+                  const next = { ...current }
+                  delete next[node.id]
+                  return next
+                })
+                void moveNode(node.id, node.position)
+              }}
               onConnect={onConnect}
               proOptions={{ hideAttribution: true }}
               className="bg-transparent"
