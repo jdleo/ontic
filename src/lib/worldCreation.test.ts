@@ -111,4 +111,74 @@ describe('WorldCreationService', () => {
 
     consoleError.mockRestore()
   })
+
+  it('retries once to repair schema-invalid ontology output', async () => {
+    const callHeavy = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          code: 'schema_validation_error',
+          message: 'bad schema',
+          rawText:
+            '{"nodes":[{"id":"a","type":"actor","label":"Actor","data":{}}],"edges":[{"id":"e","source":"a","target":"b","type":"causal","data":{"description":"bad"}}],"variables":[],"actors":[],"events":[],"assumptions":[]}',
+          issues: [
+            {
+              code: 'invalid_value',
+              values: ['influences'],
+              path: ['edges', 0, 'type'],
+              message: 'Invalid option: expected one of "influences"|...',
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        model: 'heavy-model',
+        text:
+          '{"nodes":[{"id":"a","type":"actor","label":"Actor","data":{}},{"id":"b","type":"outcome","label":"Outcome","data":{}}],"edges":[{"id":"e","source":"a","target":"b","type":"causes","data":{"confidence":0.7}}],"variables":[],"actors":[],"events":[],"assumptions":[]}',
+        data: {
+          nodes: [
+            {
+              id: 'a',
+              type: 'actor',
+              label: 'Actor',
+              data: {},
+            },
+            {
+              id: 'b',
+              type: 'outcome',
+              label: 'Outcome',
+              data: {},
+            },
+          ],
+          edges: [
+            {
+              id: 'e',
+              source: 'a',
+              target: 'b',
+              type: 'causes',
+              data: { confidence: 0.7 },
+            },
+          ],
+          variables: [],
+          actors: [],
+          events: [],
+          assumptions: [],
+        },
+      })
+
+    const service = new WorldCreationService({
+      openRouter: { callHeavy },
+    })
+
+    const result = await service.createInitialOntology('A trade conflict escalates.')
+
+    expect(result.ok).toBe(true)
+    expect(callHeavy).toHaveBeenCalledTimes(2)
+    expect(callHeavy.mock.calls[1]?.[0]).toMatchObject({
+      temperature: 0,
+      messages: expect.any(Array),
+    })
+  })
 })

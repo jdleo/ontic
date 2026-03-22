@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z, type ZodIssue } from 'zod'
 import { ontologySchema } from '../types'
 import type { Ontology } from '../types'
 import { openRouterClient, type OpenRouterResult } from './openRouter'
@@ -97,14 +97,33 @@ function buildPrompt(scenario: string) {
     user: [
       'Convert the following scenario into ontology JSON.',
       'Return an object with keys: nodes, edges, variables, actors, events, assumptions.',
+      'Allowed node types: actor, institution, resource, event, belief, constraint, objective, outcome.',
+      'Allowed edge types: influences, competes_with, supports, constrains, depends_on, observes, causes.',
+      'Node data may contain only: description, attributes, confidence, observed.',
+      'Edge data may contain only: weight, polarity, confidence. Allowed polarity values: positive, negative, mixed.',
       'Each node must include: id, type, label, optional position, and data.',
       'Each edge must include: id, source, target, type, and data.',
       'Use 3 to 12 nodes unless the scenario clearly requires more.',
       'Keep ids stable, lowercase, and hyphenated.',
+      'Do not use custom edge types like action or causal.',
       '',
       scenario.trim(),
     ].join('\n'),
   }
+}
+
+function summarizeIssues(issues: ZodIssue[] | undefined) {
+  if (!issues?.length) {
+    return 'Validation failed for the previous ontology output.'
+  }
+
+  return issues
+    .slice(0, 12)
+    .map((issue) => {
+      const path = issue.path.length ? issue.path.join('.') : 'root'
+      return `${path}: ${issue.message}`
+    })
+    .join('\n')
 }
 
 function formatCreationError(result: OpenRouterResult<DraftOntology>): string {
@@ -169,22 +188,55 @@ export class WorldCreationService {
       responseSchema: draftOntologySchema,
     })
 
-    if (!result.ok) {
-      logWorldCreationFailure(formatCreationError(result), result.error)
+    const repaired = !result.ok && result.error.code === 'schema_validation_error'
+      ? await this.dependencies.openRouter.callHeavy({
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You repair ontology JSON to exactly match the requested schema. Return only corrected JSON.',
+            },
+            {
+              role: 'user',
+              content: [
+                'The previous ontology JSON failed validation.',
+                'Allowed node types: actor, institution, resource, event, belief, constraint, objective, outcome.',
+                'Allowed edge types: influences, competes_with, supports, constrains, depends_on, observes, causes.',
+                'Node data may contain only: description, attributes, confidence, observed.',
+                'Edge data may contain only: weight, polarity, confidence. Allowed polarity values: positive, negative, mixed.',
+                'Fix the JSON below so it validates. Keep the same scenario meaning, but remove unsupported fields and map unsupported edge types to the nearest allowed type.',
+                '',
+                'Validation issues:',
+                summarizeIssues(result.error.issues),
+                '',
+                'Previous JSON:',
+                result.error.rawText ?? '',
+              ].join('\n'),
+            },
+          ],
+          temperature: 0,
+          responseSchema: draftOntologySchema,
+        })
+      : null
+
+    const resolved = repaired?.ok ? repaired : result
+
+    if (!resolved.ok) {
+      logWorldCreationFailure(formatCreationError(resolved), resolved.error)
       return {
         ok: false,
-        message: formatCreationError(result),
-        debugMessage: formatDebugMessage(result.error.cause ?? result.error.rawText ?? result.error),
-        cause: result.error,
+        message: formatCreationError(resolved),
+        debugMessage: formatDebugMessage(resolved.error.cause ?? resolved.error.rawText ?? resolved.error),
+        cause: resolved.error,
       }
     }
 
     try {
       return {
         ok: true,
-        ontology: normalizeOntology(result.data),
-        rawText: result.text,
-        model: result.model,
+        ontology: normalizeOntology(resolved.data),
+        rawText: resolved.text,
+        model: resolved.model,
       }
     } catch (cause) {
       logWorldCreationFailure(
