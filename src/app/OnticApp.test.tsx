@@ -38,6 +38,12 @@ function createWorldCreationMocks() {
   }
 }
 
+function createSimulationMocks() {
+  return {
+    run: vi.fn(),
+  }
+}
+
 function renderAppMarkup(hasKey = false) {
   const store = createWorldStore({
     persistence: createPersistenceMocks(),
@@ -49,6 +55,7 @@ function renderAppMarkup(hasKey = false) {
         : {},
     ),
     worldCreation: createWorldCreationMocks(),
+    simulation: createSimulationMocks(),
   })
 
   return renderToStaticMarkup(

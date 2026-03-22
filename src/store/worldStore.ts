@@ -4,6 +4,7 @@ import {
   MODEL_TIER_CONFIG_KEY,
   persistence,
 } from '../db/repository'
+import { simulationWorkerClient } from '../simulation/client'
 import { worldCreationService } from '../lib/worldCreation'
 import type {
   EdgePolarity,
@@ -64,6 +65,7 @@ export type StoreDependencies = {
   }
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   worldCreation: Pick<typeof worldCreationService, 'createInitialOntology'>
+  simulation: Pick<typeof simulationWorkerClient, 'run'>
 }
 
 export type WorldStoreState = {
@@ -97,6 +99,14 @@ export type WorldStoreActions = {
   setActiveQueryInput: (value: string) => void
   setActiveMutationInput: (value: string) => void
   setCurrentResult: (result: QueryResult | null) => void
+  runSimulation: (query: {
+    question: string
+    timeframe?: string
+    targetOutcomes: string[]
+    focusNodeIds?: string[]
+    comparisonMode?: import('../types').ComparisonMode
+    rolloutCount?: number
+  }) => Promise<QueryResult | null>
   renameNode: (nodeId: string, label: string) => Promise<void>
   moveNode: (nodeId: string, position: { x: number; y: number }) => Promise<void>
   createEdge: (input: { source: string; target: string; type?: OntologyEdgeType }) => Promise<void>
@@ -190,6 +200,7 @@ export function createWorldStore(
     persistence,
     storage: getBrowserStorage(),
     worldCreation: worldCreationService,
+    simulation: simulationWorkerClient,
   },
 ) {
   const persistDerivedVersion = async (
@@ -439,6 +450,49 @@ export function createWorldStore(
 
     setCurrentResult(result) {
       set({ currentResult: result })
+    },
+
+    async runSimulation(query) {
+      const state = get()
+
+      if (!state.currentVersion) {
+        return null
+      }
+
+      const jobId = crypto.randomUUID()
+
+      get().setWorkerJob({
+        state: 'running',
+        jobId,
+        task: 'query',
+        startedAt: Date.now(),
+      })
+      get().setLoadingState('query', true)
+
+      try {
+        const response = await get().dependencies.simulation.run({
+          ontology: state.currentVersion.ontology,
+          query,
+          rolloutCount: query.rolloutCount,
+        })
+
+        set({
+          currentResult: response.result,
+          workerJob: { state: 'idle' },
+        })
+
+        return response.result
+      } catch (error) {
+        get().setWorkerJob({
+          state: 'error',
+          jobId,
+          task: 'query',
+          message: error instanceof Error ? error.message : 'Simulation failed.',
+        })
+        return null
+      } finally {
+        get().setLoadingState('query', false)
+      }
     },
 
     async renameNode(nodeId, label) {
