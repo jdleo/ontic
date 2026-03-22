@@ -61,6 +61,19 @@ function createWorldCreationMocks() {
   }
 }
 
+function createSimulationMocks() {
+  return {
+    run: vi.fn().mockResolvedValue({
+      rolloutCount: 300,
+      result: {
+        outcomes: [{ label: 'Outcome', probability: 1 }],
+        keyDrivers: [{ label: 'Actor One', impact: 0.8 }],
+        modelConfidence: 0.72,
+      },
+    }),
+  }
+}
+
 function createBundle(): PersistedWorldBundle {
   return {
     world: {
@@ -168,6 +181,7 @@ describe('worldStore', () => {
         [OPENROUTER_API_KEY_STORAGE_KEY]: 'secret',
       }),
       worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
     })
 
     await store.getState().hydrate()
@@ -188,6 +202,7 @@ describe('worldStore', () => {
       persistence,
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -217,6 +232,7 @@ describe('worldStore', () => {
       persistence,
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
     })
 
     expect(store.getState().modelTierConfig).toEqual(DEFAULT_MODEL_TIER_CONFIG)
@@ -240,6 +256,7 @@ describe('worldStore', () => {
       persistence,
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
     })
 
     const nextPreferences: GraphPreferences = {
@@ -258,6 +275,7 @@ describe('worldStore', () => {
       persistence: createPersistenceMocks(),
       storage,
       worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
     })
 
     store.getState().setOpenRouterApiKey('sk-or-v1-secret')
@@ -278,6 +296,7 @@ describe('worldStore', () => {
       persistence,
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -305,6 +324,7 @@ describe('worldStore', () => {
       persistence,
       storage: createMemoryStorage(),
       worldCreation,
+      simulation: createSimulationMocks(),
     })
 
     const created = await store.getState().createWorldFromScenario({
@@ -335,6 +355,7 @@ describe('worldStore', () => {
           cause: new Error('bad json'),
         }),
       },
+      simulation: createSimulationMocks(),
     })
 
     const created = await store.getState().createWorldFromScenario({
@@ -347,5 +368,36 @@ describe('worldStore', () => {
     expect(store.getState().worldCreationError).toBe('The parser returned malformed JSON.')
     expect(store.getState().worldCreationDebug).toBeNull()
     expect(persistence.createWorld).not.toHaveBeenCalled()
+  })
+
+  it('runs simulations through the worker dependency and stores the result', async () => {
+    const simulation = createSimulationMocks()
+    const store = createWorldStore({
+      persistence: createPersistenceMocks(),
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+      simulation,
+    })
+
+    await store.getState().setWorldBundle(createBundle())
+
+    const result = await store.getState().runSimulation({
+      question: 'What happens next?',
+      targetOutcomes: ['Outcome One'],
+      rolloutCount: 450,
+    })
+
+    expect(simulation.run).toHaveBeenCalledWith({
+      ontology: store.getState().currentVersion?.ontology,
+      query: {
+        question: 'What happens next?',
+        targetOutcomes: ['Outcome One'],
+        rolloutCount: 450,
+      },
+      rolloutCount: 450,
+    })
+    expect(result?.modelConfidence).toBe(0.72)
+    expect(store.getState().currentResult?.outcomes[0]?.label).toBe('Outcome')
+    expect(store.getState().workerJob.state).toBe('idle')
   })
 })
