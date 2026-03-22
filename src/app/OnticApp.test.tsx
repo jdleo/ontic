@@ -1,14 +1,74 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { OnticApp } from './OnticApp'
+import { createWorldStore, OPENROUTER_API_KEY_STORAGE_KEY } from '../store/worldStore'
+import { WorldStoreContext } from '../store/worldStoreContext'
+
+function createMemoryStorage(initial: Record<string, string> = {}) {
+  const values = new Map(Object.entries(initial))
+
+  return {
+    getItem(key: string) {
+      return values.get(key) ?? null
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value)
+    },
+    removeItem(key: string) {
+      values.delete(key)
+    },
+  }
+}
+
+function renderAppMarkup(hasKey = false) {
+  const store = createWorldStore({
+    persistence: {
+      loadLastOpenedWorldBundle: vi.fn().mockResolvedValue(undefined),
+      setLastOpenedWorldId: vi.fn().mockResolvedValue(undefined),
+      saveSetting: vi.fn().mockResolvedValue(undefined),
+      getSetting: vi.fn().mockResolvedValue(undefined),
+    },
+    storage: createMemoryStorage(
+      hasKey
+        ? {
+            [OPENROUTER_API_KEY_STORAGE_KEY]: 'sk-or-v1-test',
+          }
+        : {},
+    ),
+  })
+
+  return renderToStaticMarkup(
+    <WorldStoreContext.Provider value={store}>
+      <OnticApp />
+    </WorldStoreContext.Provider>,
+  )
+}
 
 describe('OnticApp', () => {
   it('renders the three-region shell copy', () => {
-    const markup = renderToStaticMarkup(<OnticApp />)
+    const markup = renderAppMarkup(true)
 
     expect(markup).toContain('Ontic Workspace')
     expect(markup).toContain('World controls')
     expect(markup).toContain('Ontology graph surface')
     expect(markup).toContain('Query, mutate, inspect, results')
+  })
+
+  it('renders a blocking setup state when the API key is missing', () => {
+    const markup = renderAppMarkup(false)
+
+    expect(markup).toContain('Configure OpenRouter before continuing')
+    expect(markup).toContain('LLM-backed flows are blocked until an OpenRouter key is configured')
+    expect(markup).toContain('Status: Missing')
+  })
+
+  it('shows configured state when the API key is present', () => {
+    const markup = renderAppMarkup(true)
+
+    expect(markup).toContain('Model access')
+    expect(markup).toContain('Configured')
+    expect(markup).toContain('Open settings')
+    expect(markup).toContain('Status: LLM settings configured')
+    expect(markup).not.toContain('Configure OpenRouter before continuing')
   })
 })

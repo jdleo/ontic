@@ -1,9 +1,17 @@
+import { useWorldStore } from '../store/useWorldStore'
+
 export function QueryPanel() {
+  const hasOpenRouterKey = useWorldStore((state) => state.hasOpenRouterKey)
+
   return (
     <PanelCard
       eyebrow="Query"
       title="Natural-language questions"
-      body="Structured query parsing and subgraph selection will live here."
+      body={
+        hasOpenRouterKey
+          ? 'Structured query parsing and subgraph selection will live here.'
+          : 'Configure OpenRouter in Settings to enable structured query parsing and explanation flows.'
+      }
     />
   )
 }
