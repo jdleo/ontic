@@ -1,9 +1,18 @@
+import { useState } from 'react'
 import { GraphCanvas } from '../components/GraphCanvas'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { RightPanel } from '../components/RightPanel'
 import { SettingsModal } from '../components/SettingsModal'
+import { useWorldStore } from '../store/useWorldStore'
 
 export function OnticApp() {
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const hasOpenRouterKey = useWorldStore((state) => state.hasOpenRouterKey)
+  const loadingBootstrap = useWorldStore((state) => state.loading.bootstrap)
+  const modelTierConfig = useWorldStore((state) => state.modelTierConfig)
+
+  const setupRequired = !loadingBootstrap && !hasOpenRouterKey
+
   return (
     <div className="min-h-screen bg-transparent text-[var(--color-text)]">
       <div className="mx-auto flex min-h-screen w-full max-w-[var(--shell-max-width)] flex-col px-4 py-4 sm:px-6 sm:py-6">
@@ -15,20 +24,38 @@ export function OnticApp() {
                 Ontic Workspace
               </p>
               <h1 className="shell-display mt-3 max-w-4xl">
-                A dark editorial shell for ontology modeling and probabilistic playbooks
+                Model access should feel like part of the editorial control surface
               </h1>
               <p className="shell-copy mt-4 max-w-2xl text-sm sm:text-base">
-                The shell now leans into restrained contrast, rounded high-signal
-                controls, and tokenized surfaces so future feature work can reuse
-                one coherent visual system instead of one-off styling.
+                Configure OpenRouter once, keep the mappings local, and let the
+                world model stay browser-first while LLM-assisted flows remain
+                explicitly gated.
               </p>
             </div>
 
             <div className="grid gap-2.5 text-sm sm:grid-cols-3 xl:min-w-[440px]">
-              <ShellMetric label="Persistence" value="Local-first state" />
-              <ShellMetric label="Inference" value="Client-side workers" />
-              <ShellMetric label="Models" value="Tiered orchestration" />
+              <ShellMetric
+                label="Model access"
+                value={hasOpenRouterKey ? 'Configured' : 'Setup required'}
+              />
+              <ShellMetric label="Medium tier" value={modelTierConfig.medium} />
+              <ShellMetric label="Heavy tier" value={modelTierConfig.high} />
             </div>
+          </div>
+
+          <div className="relative mt-5 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="shell-button-primary px-5 py-2.5 text-sm font-medium"
+            >
+              {hasOpenRouterKey ? 'Open settings' : 'Complete setup'}
+            </button>
+            {setupRequired ? (
+              <p className="shell-copy text-sm">
+                LLM-backed flows are blocked until an OpenRouter key is configured. Removing the key does not delete worlds.
+              </p>
+            ) : null}
           </div>
         </header>
 
@@ -39,7 +66,11 @@ export function OnticApp() {
         </main>
       </div>
 
-      <SettingsModal />
+      <SettingsModal
+        open={settingsOpen || setupRequired}
+        required={setupRequired}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   )
 }

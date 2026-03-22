@@ -161,4 +161,28 @@ describe('worldStore', () => {
     expect(store.getState().modelTierConfig).toEqual(nextConfig)
     expect(saveSetting).toHaveBeenCalledWith('model_tier_config', nextConfig)
   })
+
+  it('stores and removes the OpenRouter API key without touching other state', async () => {
+    const storage = createMemoryStorage()
+    const store = createWorldStore({
+      persistence: {
+        loadLastOpenedWorldBundle: vi.fn().mockResolvedValue(undefined),
+        setLastOpenedWorldId: vi.fn().mockResolvedValue(undefined),
+        saveSetting: vi.fn().mockResolvedValue(undefined),
+        getSetting: vi.fn().mockResolvedValue(undefined),
+      },
+      storage,
+    })
+
+    store.getState().setOpenRouterApiKey('sk-or-v1-secret')
+
+    expect(storage.getItem(OPENROUTER_API_KEY_STORAGE_KEY)).toBe('sk-or-v1-secret')
+    expect(store.getState().hasOpenRouterKey).toBe(true)
+
+    store.getState().removeOpenRouterApiKey()
+
+    expect(storage.getItem(OPENROUTER_API_KEY_STORAGE_KEY)).toBeNull()
+    expect(store.getState().hasOpenRouterKey).toBe(false)
+    expect(store.getState().currentWorld).toBeNull()
+  })
 })

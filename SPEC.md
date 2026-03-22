@@ -44,7 +44,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] Core domain types and validation schemas
 - [x] Dexie persistence layer
 - [x] Zustand app store
-- [ ] Settings bootstrap for API key and model tiers
+- [x] Settings bootstrap for API key and model tiers
 - [ ] OpenRouter wrapper with LOW, MEDIUM, HIGH model routing
 - [ ] Situation parsing flow
 - [ ] Query parsing and simulation flow

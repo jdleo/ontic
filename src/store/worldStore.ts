@@ -15,9 +15,9 @@ import type {
 export const OPENROUTER_API_KEY_STORAGE_KEY = 'openrouter_api_key'
 
 export const DEFAULT_MODEL_TIER_CONFIG: ModelTierConfig = {
-  low: 'openrouter/auto',
-  medium: 'openrouter/auto',
-  high: 'openrouter/auto',
+  low: 'minimax/minimax-m2.7',
+  medium: 'anthropic/claude-sonnet-4.6',
+  high: 'anthropic/claude-opus-4.6',
 }
 
 export type GraphSelection =
@@ -77,7 +77,8 @@ export type WorldStoreActions = {
   setActiveMutationInput: (value: string) => void
   setCurrentResult: (result: QueryResult | null) => void
   setModelTierConfig: (config: ModelTierConfig) => Promise<void>
-  setHasOpenRouterKey: (hasKey: boolean) => void
+  setOpenRouterApiKey: (apiKey: string) => void
+  removeOpenRouterApiKey: () => void
   refreshOpenRouterKeyPresence: () => void
   setLoadingState: (key: keyof LoadingState, value: boolean) => void
   setWorkerJob: (status: WorkerJobStatus) => void
@@ -104,6 +105,8 @@ function getBrowserStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'
 }
 
 function createInitialState(dependencies: StoreDependencies): WorldStoreState {
+  const storedApiKey = dependencies.storage.getItem(OPENROUTER_API_KEY_STORAGE_KEY)?.trim() ?? ''
+
   return {
     currentWorld: null,
     currentVersion: null,
@@ -114,7 +117,7 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
     activeMutationInput: '',
     currentResult: null,
     modelTierConfig: DEFAULT_MODEL_TIER_CONFIG,
-    hasOpenRouterKey: false,
+    hasOpenRouterKey: storedApiKey.length > 0,
     loading: {
       bootstrap: false,
       world: false,
@@ -252,8 +255,14 @@ export function createWorldStore(
       await get().dependencies.persistence.saveSetting(MODEL_TIER_CONFIG_KEY, config)
     },
 
-    setHasOpenRouterKey(hasKey) {
-      set({ hasOpenRouterKey: hasKey })
+    setOpenRouterApiKey(apiKey) {
+      get().dependencies.storage.setItem(OPENROUTER_API_KEY_STORAGE_KEY, apiKey)
+      set({ hasOpenRouterKey: apiKey.trim().length > 0 })
+    },
+
+    removeOpenRouterApiKey() {
+      get().dependencies.storage.removeItem(OPENROUTER_API_KEY_STORAGE_KEY)
+      set({ hasOpenRouterKey: false })
     },
 
     refreshOpenRouterKeyPresence() {
