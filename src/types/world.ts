@@ -26,3 +26,20 @@ export type PersistedWorldBundle = {
   queryResults?: QueryResultRecord[]
   mutations?: MutationRecord[]
 }
+
+export type AppSetting<TValue = unknown> = {
+  key: string
+  value: TValue
+  updatedAt: number
+}
+
+export type ModelTierConfig = {
+  low: string
+  medium: string
+  high: string
+}
+
+export type PersistedAppState = {
+  lastOpenedWorldId?: string
+  modelTierConfig?: ModelTierConfig
+}
