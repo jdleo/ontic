@@ -11,13 +11,13 @@ const leftRailSections = [
 
 export function LeftSidebar() {
   return (
-    <aside className="rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-4 shadow-[var(--shadow)]">
-      <div className="mb-5 rounded-[24px] border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">
+    <aside className="shell-panel rounded-[2rem] p-4">
+      <div className="shell-card-elevated mb-5 rounded-[1.7rem] px-4 py-4">
+        <p className="shell-label">
           Left Sidebar
         </p>
-        <h2 className="mt-2 text-xl font-semibold text-white">World controls</h2>
-        <p className="mt-2 text-sm text-[var(--muted)]">
+        <h2 className="shell-title mt-2">World controls</h2>
+        <p className="shell-copy mt-2 text-sm">
           Space for world creation, version history, import/export, and snapshot
           management.
         </p>
@@ -27,16 +27,16 @@ export function LeftSidebar() {
         {leftRailSections.map((section) => (
           <section
             key={section.title}
-            className="rounded-[22px] border border-[var(--border)] bg-[rgba(7,17,31,0.62)] p-4"
+            className="shell-card rounded-[1.5rem] p-4"
           >
-            <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
+            <h3 className="shell-label text-[0.72rem]">
               {section.title}
             </h3>
             <ul className="mt-3 space-y-2">
               {section.items.map((item) => (
                 <li
                   key={item}
-                  className="rounded-2xl border border-[var(--border)] bg-[rgba(14,26,45,0.72)] px-3 py-2 text-sm text-white"
+                  className="shell-button-secondary px-3 py-2.5 text-sm"
                 >
                   {item}
                 </li>
