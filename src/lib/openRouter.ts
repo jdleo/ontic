@@ -63,6 +63,10 @@ export type OpenRouterClientDependencies = {
   storage: Pick<Storage, 'getItem'>
 }
 
+function getDefaultFetch(): typeof fetch {
+  return (...args) => globalThis.fetch(...args)
+}
+
 function getBrowserStorage(): Pick<Storage, 'getItem'> {
   if (typeof window !== 'undefined' && window.localStorage) {
     return window.localStorage
@@ -177,7 +181,7 @@ export class OpenRouterClient {
     dependencies: Partial<OpenRouterClientDependencies> = {},
   ) {
     this.dependencies = {
-      fetch: dependencies.fetch ?? fetch,
+      fetch: dependencies.fetch ?? getDefaultFetch(),
       persistence: dependencies.persistence ?? persistence,
       storage: dependencies.storage ?? getBrowserStorage(),
     }
