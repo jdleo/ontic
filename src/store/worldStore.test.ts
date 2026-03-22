@@ -314,6 +314,7 @@ describe('worldStore', () => {
     expect(created).toBe(false)
     expect(store.getState().currentWorld).toBeNull()
     expect(store.getState().worldCreationError).toBe('The parser returned malformed JSON.')
+    expect(store.getState().worldCreationDebug).toBeNull()
     expect(persistence.createWorld).not.toHaveBeenCalled()
   })
 })

@@ -67,7 +67,7 @@ export type WorldCreationDependencies = {
 
 export type WorldCreationResult =
   | { ok: true; ontology: Ontology; rawText: string; model: string }
-  | { ok: false; message: string; cause: unknown }
+  | { ok: false; message: string; debugMessage?: string; cause: unknown }
 
 function createFallbackPosition(index: number) {
   const columns = 3
@@ -130,6 +130,29 @@ function formatCreationError(result: OpenRouterResult<DraftOntology>): string {
   }
 }
 
+function formatDebugMessage(cause: unknown): string | undefined {
+  if (cause instanceof Error) {
+    return cause.message
+  }
+
+  if (typeof cause === 'string' && cause.trim().length > 0) {
+    return cause
+  }
+
+  try {
+    return JSON.stringify(cause)
+  } catch {
+    return undefined
+  }
+}
+
+function logWorldCreationFailure(message: string, cause: unknown) {
+  console.error('[ontic] world creation failed', {
+    message,
+    cause,
+  })
+}
+
 export class WorldCreationService {
   private readonly dependencies: WorldCreationDependencies
 
@@ -147,9 +170,11 @@ export class WorldCreationService {
     })
 
     if (!result.ok) {
+      logWorldCreationFailure(formatCreationError(result), result.error)
       return {
         ok: false,
         message: formatCreationError(result),
+        debugMessage: formatDebugMessage(result.error.cause ?? result.error.rawText ?? result.error),
         cause: result.error,
       }
     }
@@ -162,9 +187,14 @@ export class WorldCreationService {
         model: result.model,
       }
     } catch (cause) {
+      logWorldCreationFailure(
+        'The parser output could not be normalized into a valid ontology. No world was saved.',
+        cause,
+      )
       return {
         ok: false,
         message: 'The parser output could not be normalized into a valid ontology. No world was saved.',
+        debugMessage: formatDebugMessage(cause),
         cause,
       }
     }

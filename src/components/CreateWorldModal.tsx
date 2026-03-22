@@ -10,6 +10,7 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
   const hasOpenRouterKey = useWorldStore((state) => state.hasOpenRouterKey)
   const loadingWorld = useWorldStore((state) => state.loading.world)
   const worldCreationError = useWorldStore((state) => state.worldCreationError)
+  const worldCreationDebug = useWorldStore((state) => state.worldCreationDebug)
   const createWorldFromScenario = useWorldStore((state) => state.createWorldFromScenario)
   const clearWorldCreationError = useWorldStore((state) => state.clearWorldCreationError)
 
@@ -109,7 +110,12 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
 
             {worldCreationError ? (
               <div className="mt-4 rounded-[1.15rem] border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
-                {worldCreationError}
+                <p>{worldCreationError}</p>
+                {worldCreationDebug ? (
+                  <p className="mt-2 break-words font-[var(--font-family-mono)] text-xs text-red-100/85">
+                    {worldCreationDebug}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

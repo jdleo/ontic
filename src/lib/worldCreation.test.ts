@@ -70,10 +70,45 @@ describe('WorldCreationService', () => {
     expect(result).toEqual({
       ok: false,
       message: 'The parser returned JSON, but it failed ontology validation. No world was saved.',
+      debugMessage: '{"code":"schema_validation_error","message":"bad schema"}',
       cause: {
         code: 'schema_validation_error',
         message: 'bad schema',
       },
     })
+  })
+
+  it('preserves the underlying network error message for debugging', async () => {
+    const error = new TypeError('Failed to fetch')
+    const service = new WorldCreationService({
+      openRouter: {
+        callHeavy: vi.fn().mockResolvedValue({
+          ok: false,
+          error: {
+            code: 'network_error',
+            message: 'network',
+            cause: error,
+          },
+        }),
+      },
+    })
+
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const result = await service.createInitialOntology('A trade conflict escalates.')
+
+    expect(result).toEqual({
+      ok: false,
+      message: 'The parser request failed before reaching OpenRouter. Check your connection and try again.',
+      debugMessage: 'Failed to fetch',
+      cause: {
+        code: 'network_error',
+        message: 'network',
+        cause: error,
+      },
+    })
+    expect(consoleError).toHaveBeenCalled()
+
+    consoleError.mockRestore()
   })
 })

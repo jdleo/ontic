@@ -73,6 +73,7 @@ export type WorldStoreState = {
   loading: LoadingState
   workerJob: WorkerJobStatus
   worldCreationError: string | null
+  worldCreationDebug: string | null
   dependencies: StoreDependencies
 }
 
@@ -165,6 +166,7 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
     },
     workerJob: { state: 'idle' },
     worldCreationError: null,
+    worldCreationDebug: null,
     dependencies,
   }
 }
@@ -273,18 +275,22 @@ export function createWorldStore(
       if (!nextName || !nextScenario) {
         set({
           worldCreationError: 'A world name and scenario are required before creating a world.',
+          worldCreationDebug: null,
         })
         return false
       }
 
       get().setLoadingState('world', true)
-      set({ worldCreationError: null })
+      set({ worldCreationError: null, worldCreationDebug: null })
 
       try {
         const parsed = await get().dependencies.worldCreation.createInitialOntology(nextScenario)
 
         if (!parsed.ok) {
-          set({ worldCreationError: parsed.message })
+          set({
+            worldCreationError: parsed.message,
+            worldCreationDebug: parsed.debugMessage ?? null,
+          })
           return false
         }
 
@@ -331,6 +337,7 @@ export function createWorldStore(
           versions: [],
           currentResult: null,
           worldCreationError: null,
+          worldCreationDebug: null,
         })
         return
       }
@@ -350,6 +357,7 @@ export function createWorldStore(
         },
         currentResult: bundle.queryResults?.at(-1)?.result ?? null,
         worldCreationError: null,
+        worldCreationDebug: null,
       }))
 
       await get().dependencies.persistence.setLastOpenedWorldId(bundle.world.id)
@@ -610,7 +618,7 @@ export function createWorldStore(
     },
 
     clearWorldCreationError() {
-      set({ worldCreationError: null })
+      set({ worldCreationError: null, worldCreationDebug: null })
     },
 
     resetTransientState() {
@@ -621,6 +629,7 @@ export function createWorldStore(
         currentResult: null,
         workerJob: { state: 'idle' },
         worldCreationError: null,
+        worldCreationDebug: null,
         loading: {
           ...state.loading,
           query: false,
