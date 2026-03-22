@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useWorldStore } from '../store/useWorldStore'
 
 type CreateWorldModalProps = {
@@ -18,16 +18,6 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
   const [scenario, setScenario] = useState('')
   const [researchTopic, setResearchTopic] = useState('')
   const [researchOpen, setResearchOpen] = useState(false)
-
-  useEffect(() => {
-    if (!open) {
-      setWorldName('')
-      setScenario('')
-      setResearchTopic('')
-      setResearchOpen(false)
-      clearWorldCreationError()
-    }
-  }, [clearWorldCreationError, open])
 
   if (!open) {
     return null
@@ -52,6 +42,15 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
     onClose()
   }
 
+  function handleClose() {
+    setWorldName('')
+    setScenario('')
+    setResearchTopic('')
+    setResearchOpen(false)
+    clearWorldCreationError()
+    onClose()
+  }
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 px-4 py-6 backdrop-blur-sm">
       <div className="flex min-h-full items-start justify-center">
@@ -68,7 +67,7 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="shell-button-secondary whitespace-nowrap px-4 py-2 text-sm"
           >
             Close
