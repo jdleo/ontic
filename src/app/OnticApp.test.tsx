@@ -27,6 +27,7 @@ function createPersistenceMocks() {
     createWorld: vi.fn().mockResolvedValue(undefined),
     saveWorld: vi.fn().mockResolvedValue(undefined),
     saveVersion: vi.fn().mockResolvedValue(undefined),
+    saveQuery: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }
@@ -44,6 +45,13 @@ function createSimulationMocks() {
   }
 }
 
+function createQueryFlowMocks() {
+  return {
+    parseQuestion: vi.fn(),
+    explainResult: vi.fn(),
+  }
+}
+
 function renderAppMarkup(hasKey = false) {
   const store = createWorldStore({
     persistence: createPersistenceMocks(),
@@ -56,6 +64,7 @@ function renderAppMarkup(hasKey = false) {
     ),
     worldCreation: createWorldCreationMocks(),
     simulation: createSimulationMocks(),
+    queryFlow: createQueryFlowMocks(),
   })
 
   return renderToStaticMarkup(
