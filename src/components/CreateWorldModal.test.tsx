@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import { OnticApp } from './OnticApp'
+import { CreateWorldModal } from './CreateWorldModal'
 import { createWorldStore, OPENROUTER_API_KEY_STORAGE_KEY } from '../store/worldStore'
 import { WorldStoreContext } from '../store/worldStoreContext'
 
@@ -38,7 +38,7 @@ function createWorldCreationMocks() {
   }
 }
 
-function renderAppMarkup(hasKey = false) {
+function renderModalMarkup(hasKey = false) {
   const store = createWorldStore({
     persistence: createPersistenceMocks(),
     storage: createMemoryStorage(
@@ -53,38 +53,25 @@ function renderAppMarkup(hasKey = false) {
 
   return renderToStaticMarkup(
     <WorldStoreContext.Provider value={store}>
-      <OnticApp />
+      <CreateWorldModal open onClose={() => {}} />
     </WorldStoreContext.Provider>,
   )
 }
 
-describe('OnticApp', () => {
-  it('renders the three-region shell copy', () => {
-    const markup = renderAppMarkup(true)
+describe('CreateWorldModal', () => {
+  it('renders create-world fields when open', () => {
+    const markup = renderModalMarkup(true)
 
-    expect(markup).toContain('Ontic')
     expect(markup).toContain('Create world')
-    expect(markup).toContain('Settings')
-    expect(markup).toContain('Ontology graph surface')
-    expect(markup).toContain('Query, mutate, inspect, results')
-  })
-
-  it('renders a blocking setup state when the API key is missing', () => {
-    const markup = renderAppMarkup(false)
-
-    expect(markup).toContain('Configure OpenRouter before continuing')
-    expect(markup).toContain('LLM-backed flows are blocked until an OpenRouter key is configured')
-    expect(markup).toContain('Status: Missing')
-    expect(markup).toContain('No world loaded')
-  })
-
-  it('shows configured state when the API key is present', () => {
-    const markup = renderAppMarkup(true)
-
-    expect(markup).toContain('Access')
+    expect(markup).toContain('World name')
+    expect(markup).toContain('Scenario')
     expect(markup).toContain('Parser ready')
-    expect(markup).toContain('Settings')
-    expect(markup).toContain('No world loaded')
-    expect(markup).not.toContain('Configure OpenRouter before continuing')
+  })
+
+  it('shows setup guidance when the API key is missing', () => {
+    const markup = renderModalMarkup(false)
+
+    expect(markup).toContain('Setup required')
+    expect(markup).toContain('Configure OpenRouter in settings before creating a world')
   })
 })

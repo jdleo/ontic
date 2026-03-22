@@ -6,6 +6,7 @@ import { useWorldStore } from '../store/useWorldStore'
 
 export function RightPanel() {
   const hasOpenRouterKey = useWorldStore((state) => state.hasOpenRouterKey)
+  const currentWorld = useWorldStore((state) => state.currentWorld)
 
   return (
     <aside className="shell-panel flex min-h-[540px] flex-col gap-4 rounded-[2rem] p-4">
@@ -21,7 +22,7 @@ export function RightPanel() {
           built independently.
         </p>
         <p className="shell-copy mt-3 text-sm">
-          Status: {hasOpenRouterKey ? 'LLM settings configured' : 'Waiting for OpenRouter setup'}
+          Status: {currentWorld ? `Editing ${currentWorld.name}` : hasOpenRouterKey ? 'Ready for world creation' : 'Waiting for OpenRouter setup'}
         </p>
       </div>
 

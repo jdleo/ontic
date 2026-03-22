@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWorldStore, DEFAULT_MODEL_TIER_CONFIG, OPENROUTER_API_KEY_STORAGE_KEY } from './worldStore'
-import type { ModelTierConfig, PersistedWorldBundle } from '../types'
+import {
+  createWorldStore,
+  DEFAULT_GRAPH_PREFERENCES,
+  DEFAULT_MODEL_TIER_CONFIG,
+  OPENROUTER_API_KEY_STORAGE_KEY,
+} from './worldStore'
+import type { GraphPreferences, ModelTierConfig, PersistedWorldBundle } from '../types'
 
 function createMemoryStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial))
@@ -22,10 +27,37 @@ function createPersistenceMocks(bundle?: PersistedWorldBundle) {
   return {
     loadLastOpenedWorldBundle: vi.fn().mockResolvedValue(bundle),
     setLastOpenedWorldId: vi.fn().mockResolvedValue(undefined),
+    createWorld: vi.fn().mockResolvedValue(undefined),
     saveWorld: vi.fn().mockResolvedValue(undefined),
     saveVersion: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
+function createWorldCreationMocks() {
+  return {
+    createInitialOntology: vi.fn().mockResolvedValue({
+      ok: true as const,
+      ontology: {
+        nodes: [
+          {
+            id: 'actor-1',
+            type: 'actor',
+            label: 'Lead Actor',
+            position: { x: 0, y: 0 },
+            data: { confidence: 0.8 },
+          },
+        ],
+        edges: [],
+        variables: [],
+        actors: [],
+        events: [],
+        assumptions: [],
+      },
+      rawText: '{"nodes":[]}',
+      model: 'heavy-model',
+    }),
   }
 }
 
@@ -121,15 +153,21 @@ describe('worldStore', () => {
       medium: 'medium-model',
       high: 'heavy-model',
     }
+    const graphPreferences: GraphPreferences = {
+      avoidNodeOverlap: false,
+    }
 
     const persistence = createPersistenceMocks(bundle)
-    persistence.getSetting.mockResolvedValue({ value: config })
+    persistence.getSetting
+      .mockResolvedValueOnce({ value: config })
+      .mockResolvedValueOnce({ value: graphPreferences })
 
     const store = createWorldStore({
       persistence,
       storage: createMemoryStorage({
         [OPENROUTER_API_KEY_STORAGE_KEY]: 'secret',
       }),
+      worldCreation: createWorldCreationMocks(),
     })
 
     await store.getState().hydrate()
@@ -139,6 +177,7 @@ describe('worldStore', () => {
     expect(state.currentVersion?.id).toBe('version-2')
     expect(state.currentResult?.modelConfidence).toBe(0.9)
     expect(state.modelTierConfig).toEqual(config)
+    expect(state.graphPreferences).toEqual(graphPreferences)
     expect(state.hasOpenRouterKey).toBe(true)
     expect(state.loading.bootstrap).toBe(false)
   })
@@ -148,6 +187,7 @@ describe('worldStore', () => {
     const store = createWorldStore({
       persistence,
       storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -176,9 +216,11 @@ describe('worldStore', () => {
     const store = createWorldStore({
       persistence,
       storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
     })
 
     expect(store.getState().modelTierConfig).toEqual(DEFAULT_MODEL_TIER_CONFIG)
+    expect(store.getState().graphPreferences).toEqual(DEFAULT_GRAPH_PREFERENCES)
 
     const nextConfig: ModelTierConfig = {
       low: 'tier-low',
@@ -192,11 +234,30 @@ describe('worldStore', () => {
     expect(persistence.saveSetting).toHaveBeenCalledWith('model_tier_config', nextConfig)
   })
 
+  it('persists graph preference updates', async () => {
+    const persistence = createPersistenceMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+    })
+
+    const nextPreferences: GraphPreferences = {
+      avoidNodeOverlap: false,
+    }
+
+    await store.getState().setGraphPreferences(nextPreferences)
+
+    expect(store.getState().graphPreferences).toEqual(nextPreferences)
+    expect(persistence.saveSetting).toHaveBeenCalledWith('graph_preferences', nextPreferences)
+  })
+
   it('stores and removes the OpenRouter API key without touching other state', async () => {
     const storage = createMemoryStorage()
     const store = createWorldStore({
       persistence: createPersistenceMocks(),
       storage,
+      worldCreation: createWorldCreationMocks(),
     })
 
     store.getState().setOpenRouterApiKey('sk-or-v1-secret')
@@ -216,6 +277,7 @@ describe('worldStore', () => {
     const store = createWorldStore({
       persistence,
       storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -228,9 +290,62 @@ describe('worldStore', () => {
     const state = store.getState()
     expect(state.currentVersion?.ontology.nodes[0]?.label).toBe('Lead Actor')
     expect(state.currentVersion?.ontology.nodes[0]?.position).toEqual({ x: 120, y: 160 })
+    expect(state.versions).toHaveLength(6)
+    expect(state.versions[1]?.ontology.nodes[0]?.label).toBe('Actor One')
     expect(state.currentVersion?.ontology.edges).toHaveLength(1)
     expect(state.currentVersion?.ontology.edges[0]?.type).toBe('depends_on')
     expect(persistence.saveVersion).toHaveBeenCalled()
     expect(persistence.saveWorld).toHaveBeenCalled()
+  })
+
+  it('creates and loads a persisted world from scenario text', async () => {
+    const persistence = createPersistenceMocks()
+    const worldCreation = createWorldCreationMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation,
+    })
+
+    const created = await store.getState().createWorldFromScenario({
+      name: 'Trade conflict',
+      scenario: 'Two governments compete over semiconductor exports.',
+    })
+
+    expect(created).toBe(true)
+    expect(worldCreation.createInitialOntology).toHaveBeenCalledWith(
+      'Two governments compete over semiconductor exports.',
+      { graphPreferences: DEFAULT_GRAPH_PREFERENCES },
+    )
+    expect(persistence.createWorld).toHaveBeenCalledTimes(1)
+    expect(store.getState().currentWorld?.name).toBe('Trade conflict')
+    expect(store.getState().versions).toHaveLength(1)
+    expect(store.getState().currentVersion?.patchSummary).toBe('Initial world snapshot')
+  })
+
+  it('surfaces parser failures without corrupting state', async () => {
+    const persistence = createPersistenceMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: {
+        createInitialOntology: vi.fn().mockResolvedValue({
+          ok: false as const,
+          message: 'The parser returned malformed JSON.',
+          cause: new Error('bad json'),
+        }),
+      },
+    })
+
+    const created = await store.getState().createWorldFromScenario({
+      name: 'Trade conflict',
+      scenario: 'Two governments compete over semiconductor exports.',
+    })
+
+    expect(created).toBe(false)
+    expect(store.getState().currentWorld).toBeNull()
+    expect(store.getState().worldCreationError).toBe('The parser returned malformed JSON.')
+    expect(store.getState().worldCreationDebug).toBeNull()
+    expect(persistence.createWorld).not.toHaveBeenCalled()
   })
 })

@@ -1,23 +1,25 @@
 import { useEffect, useState } from 'react'
 import {
+  applyNodeChanges,
   Background,
   BaseEdge,
   Controls,
   getBezierPath,
   Handle,
   MarkerType,
-  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
   type Edge,
   type EdgeProps,
   type Node,
+  type NodeChange,
   type NodeProps,
   type OnConnect,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { EdgePolarity, OntologyEdgeType, OntologyNode, OntologyNodeType } from '../types'
+import type { EdgePolarity, OntologyEdgeType, OntologyNode, OntologyNodeType, WorldVersion } from '../types'
+import type { GraphSelection } from '../store/worldStore'
 import { useWorldStore } from '../store/useWorldStore'
 
 const nodeToneByType: Record<OntologyNodeType, string> = {
@@ -59,7 +61,6 @@ export function GraphCanvas() {
   const selectNode = useWorldStore((state) => state.selectNode)
   const selectEdge = useWorldStore((state) => state.selectEdge)
   const clearSelection = useWorldStore((state) => state.clearSelection)
-  const moveNode = useWorldStore((state) => state.moveNode)
   const createEdge = useWorldStore((state) => state.createEdge)
   const deleteSelectedGraphItem = useWorldStore((state) => state.deleteSelectedGraphItem)
 
@@ -102,11 +103,11 @@ export function GraphCanvas() {
           <div className="shell-card w-full max-w-3xl rounded-[1.9rem] border-dashed px-8 py-12 text-center">
             <p className="shell-label">No world loaded</p>
             <h2 className="mt-4 font-[var(--font-family-serif)] text-3xl tracking-[var(--tracking-display)] text-[var(--color-text)]">
-              Load a world to edit its ontology
+              Create a world to render its ontology
             </h2>
             <p className="shell-copy mx-auto mt-4 max-w-2xl text-sm leading-7">
-              Saved nodes and edges will render here with direct editing,
-              relation wiring, and graph navigation controls.
+              Use the create-world action in the top bar. Once the first
+              snapshot validates, nodes and edges appear here for branching edits.
             </p>
           </div>
         </div>
@@ -114,16 +115,6 @@ export function GraphCanvas() {
       </section>
     )
   }
-
-  const nodes: OntologyFlowNode[] = currentVersion.ontology.nodes.map((node) => ({
-    id: node.id,
-    type: 'ontology',
-    position: node.position,
-    selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
-    data: {
-      node,
-    },
-  }))
 
   const edges: OntologyFlowEdge[] = currentVersion.ontology.edges.map((edge) => ({
     id: edge.id,
@@ -184,43 +175,87 @@ export function GraphCanvas() {
 
         <div className="h-[540px] flex-1">
           <ReactFlowProvider>
-            <ReactFlow
-              nodes={nodes}
+            <LoadedGraphCanvas
+              key={currentVersion.id}
+              currentVersion={currentVersion}
+              selectedGraph={selectedGraph}
               edges={edges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              fitView
-              minZoom={0.25}
-              maxZoom={1.8}
-              defaultEdgeOptions={{ type: 'ontology' }}
-              onNodeClick={(_, node) => selectNode(node.id)}
-              onEdgeClick={(_, edge) => selectEdge(edge.id)}
-              onPaneClick={() => clearSelection()}
-              onNodeDragStop={(_, node) => void moveNode(node.id, node.position)}
+              onNodeClick={selectNode}
+              onEdgeClick={selectEdge}
+              onPaneClick={clearSelection}
               onConnect={onConnect}
-              proOptions={{ hideAttribution: true }}
-              className="bg-transparent"
-            >
-              <Background gap={32} size={1} color="var(--color-grid)" />
-              <MiniMap
-                pannable
-                zoomable
-                nodeColor={(node) => {
-                  const graphNode = currentVersion.ontology.nodes.find((item) => item.id === node.id)
-                  return graphNode ? miniMapColor(graphNode.type) : '#fff'
-                }}
-                maskColor="rgb(0 0 0 / 0.45)"
-                className="!rounded-[1.25rem] !border !border-[var(--color-border)] !bg-black/60"
-              />
-              <Controls
-                className="!overflow-hidden !rounded-[1.25rem] !border !border-[var(--color-border)] !bg-black/70"
-                showInteractive={false}
-              />
-            </ReactFlow>
+            />
           </ReactFlowProvider>
         </div>
       </div>
     </section>
+  )
+}
+
+type LoadedGraphCanvasProps = {
+  currentVersion: WorldVersion
+  selectedGraph: GraphSelection
+  edges: OntologyFlowEdge[]
+  onNodeClick: (nodeId: string | null) => void
+  onEdgeClick: (edgeId: string | null) => void
+  onPaneClick: () => void
+  onConnect: OnConnect
+}
+
+function LoadedGraphCanvas({
+  currentVersion,
+  selectedGraph,
+  edges,
+  onNodeClick,
+  onEdgeClick,
+  onPaneClick,
+  onConnect,
+}: LoadedGraphCanvasProps) {
+  const moveNode = useWorldStore((state) => state.moveNode)
+  const [flowNodes, setFlowNodes] = useState<OntologyFlowNode[]>(() =>
+    currentVersion.ontology.nodes.map((node) => ({
+      id: node.id,
+      type: 'ontology',
+      position: node.position,
+      selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
+      data: { node },
+    })),
+  )
+
+  const nodes = flowNodes.map((node) => ({
+    ...node,
+    selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
+  }))
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      fitView
+      minZoom={0.25}
+      maxZoom={1.8}
+      defaultEdgeOptions={{ type: 'ontology' }}
+      onNodesChange={(changes: NodeChange<OntologyFlowNode>[]) => {
+        setFlowNodes((current) => applyNodeChanges(changes, current))
+      }}
+      onNodeClick={(_, node) => onNodeClick(node.id)}
+      onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
+      onPaneClick={onPaneClick}
+      onNodeDragStop={(_, node) => {
+        void moveNode(node.id, node.position)
+      }}
+      onConnect={onConnect}
+      proOptions={{ hideAttribution: true }}
+      className="bg-transparent"
+    >
+      <Background gap={32} size={1} color="var(--color-grid)" />
+      <Controls
+        className="graph-controls !overflow-hidden !rounded-[1.25rem] !border !border-white/12 !bg-white/10"
+        showInteractive={false}
+      />
+    </ReactFlow>
   )
 }
 
@@ -358,16 +393,4 @@ function edgeStrokeByPolarity(polarity: EdgePolarity | undefined) {
   }
 
   return 'rgb(255 255 255 / 0.65)'
-}
-
-function miniMapColor(type: OntologyNodeType) {
-  if (type === 'actor' || type === 'institution' || type === 'resource') {
-    return '#f1f1f1'
-  }
-
-  if (type === 'outcome') {
-    return '#8f8f8f'
-  }
-
-  return '#c1c1c1'
 }
