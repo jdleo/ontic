@@ -21,7 +21,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [ ] No required backend for MVP
 - [ ] Local persistence for worlds, versions, settings, queries, and results
 - [ ] Easy local setup
-- [ ] Explicit graph editing
+- [x] Explicit graph editing
 - [ ] Versioned world snapshots
 - [ ] OpenRouter-based model access
 
@@ -33,7 +33,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] Tailwind CSS
 - [x] Zustand
 - [x] Dexie over IndexedDB
-- [ ] React Flow graph editing and visualization
+- [x] React Flow graph editing and visualization
 - [x] Zod runtime validation
 - [ ] Web Worker simulation execution
 - [ ] OpenRouter client integration
@@ -114,7 +114,7 @@ These live in `src/types` and must remain validated before entering app state.
 - [ ] Parse to ontology with heavy model
 - [ ] Validate output
 - [ ] Save first world version
-- [ ] Render graph and allow edits
+- [x] Render graph and allow edits
 
 ### Ask question
 
