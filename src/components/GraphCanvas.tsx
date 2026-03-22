@@ -105,7 +105,7 @@ export function GraphCanvas() {
               Create a world to render its ontology
             </h2>
             <p className="shell-copy mx-auto mt-4 max-w-2xl text-sm leading-7">
-              Start from the left rail with a name and scenario. Once the first
+              Use the create-world action in the top bar. Once the first
               snapshot validates, nodes and edges appear here for branching edits.
             </p>
           </div>
@@ -207,13 +207,13 @@ export function GraphCanvas() {
                 zoomable
                 nodeColor={(node) => {
                   const graphNode = currentVersion.ontology.nodes.find((item) => item.id === node.id)
-                  return graphNode ? miniMapColor(graphNode.type) : '#fff'
+                  return graphNode ? miniMapColor(graphNode.type) : '#d6d6d6'
                 }}
-                maskColor="rgb(0 0 0 / 0.45)"
-                className="!rounded-[1.25rem] !border !border-[var(--color-border)] !bg-black/60"
+                maskColor="rgb(255 255 255 / 0.08)"
+                className="!rounded-[1.25rem] !border !border-white/12 !bg-white/8"
               />
               <Controls
-                className="!overflow-hidden !rounded-[1.25rem] !border !border-[var(--color-border)] !bg-black/70"
+                className="graph-controls !overflow-hidden !rounded-[1.25rem] !border !border-white/12 !bg-white/10"
                 showInteractive={false}
               />
             </ReactFlow>
@@ -366,8 +366,8 @@ function miniMapColor(type: OntologyNodeType) {
   }
 
   if (type === 'outcome') {
-    return '#8f8f8f'
+    return '#e2e2e2'
   }
 
-  return '#c1c1c1'
+  return '#9f9f9f'
 }

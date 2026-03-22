@@ -48,7 +48,7 @@ describe('WorldCreationService', () => {
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.ontology.nodes[0]?.position).toEqual({ x: 120, y: 120 })
-      expect(result.ontology.nodes[1]?.position).toEqual({ x: 400, y: 200 })
+      expect(result.ontology.nodes[1]?.position).toEqual({ x: 380, y: 120 })
     }
   })
 

@@ -39,7 +39,12 @@ export type ModelTierConfig = {
   high: string
 }
 
+export type GraphPreferences = {
+  avoidNodeOverlap: boolean
+}
+
 export type PersistedAppState = {
   lastOpenedWorldId?: string
   modelTierConfig?: ModelTierConfig
+  graphPreferences?: GraphPreferences
 }

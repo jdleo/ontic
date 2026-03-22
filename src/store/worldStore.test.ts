@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createWorldStore, DEFAULT_MODEL_TIER_CONFIG, OPENROUTER_API_KEY_STORAGE_KEY } from './worldStore'
-import type { ModelTierConfig, PersistedWorldBundle } from '../types'
+import {
+  createWorldStore,
+  DEFAULT_GRAPH_PREFERENCES,
+  DEFAULT_MODEL_TIER_CONFIG,
+  OPENROUTER_API_KEY_STORAGE_KEY,
+} from './worldStore'
+import type { GraphPreferences, ModelTierConfig, PersistedWorldBundle } from '../types'
 
 function createMemoryStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial))
@@ -148,9 +153,14 @@ describe('worldStore', () => {
       medium: 'medium-model',
       high: 'heavy-model',
     }
+    const graphPreferences: GraphPreferences = {
+      avoidNodeOverlap: false,
+    }
 
     const persistence = createPersistenceMocks(bundle)
-    persistence.getSetting.mockResolvedValue({ value: config })
+    persistence.getSetting
+      .mockResolvedValueOnce({ value: config })
+      .mockResolvedValueOnce({ value: graphPreferences })
 
     const store = createWorldStore({
       persistence,
@@ -167,6 +177,7 @@ describe('worldStore', () => {
     expect(state.currentVersion?.id).toBe('version-2')
     expect(state.currentResult?.modelConfidence).toBe(0.9)
     expect(state.modelTierConfig).toEqual(config)
+    expect(state.graphPreferences).toEqual(graphPreferences)
     expect(state.hasOpenRouterKey).toBe(true)
     expect(state.loading.bootstrap).toBe(false)
   })
@@ -209,6 +220,7 @@ describe('worldStore', () => {
     })
 
     expect(store.getState().modelTierConfig).toEqual(DEFAULT_MODEL_TIER_CONFIG)
+    expect(store.getState().graphPreferences).toEqual(DEFAULT_GRAPH_PREFERENCES)
 
     const nextConfig: ModelTierConfig = {
       low: 'tier-low',
@@ -220,6 +232,24 @@ describe('worldStore', () => {
 
     expect(store.getState().modelTierConfig).toEqual(nextConfig)
     expect(persistence.saveSetting).toHaveBeenCalledWith('model_tier_config', nextConfig)
+  })
+
+  it('persists graph preference updates', async () => {
+    const persistence = createPersistenceMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+    })
+
+    const nextPreferences: GraphPreferences = {
+      avoidNodeOverlap: false,
+    }
+
+    await store.getState().setGraphPreferences(nextPreferences)
+
+    expect(store.getState().graphPreferences).toEqual(nextPreferences)
+    expect(persistence.saveSetting).toHaveBeenCalledWith('graph_preferences', nextPreferences)
   })
 
   it('stores and removes the OpenRouter API key without touching other state', async () => {
@@ -285,6 +315,7 @@ describe('worldStore', () => {
     expect(created).toBe(true)
     expect(worldCreation.createInitialOntology).toHaveBeenCalledWith(
       'Two governments compete over semiconductor exports.',
+      { graphPreferences: DEFAULT_GRAPH_PREFERENCES },
     )
     expect(persistence.createWorld).toHaveBeenCalledTimes(1)
     expect(store.getState().currentWorld?.name).toBe('Trade conflict')

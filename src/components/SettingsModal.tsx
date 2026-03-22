@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { DEFAULT_MODEL_TIER_CONFIG } from '../store/worldStore'
+import { DEFAULT_GRAPH_PREFERENCES, DEFAULT_MODEL_TIER_CONFIG } from '../store/worldStore'
 import { useWorldStore } from '../store/useWorldStore'
-import type { ModelTierConfig } from '../types'
+import type { GraphPreferences, ModelTierConfig } from '../types'
 
 type SettingsModalProps = {
   open: boolean
@@ -12,17 +12,24 @@ type SettingsModalProps = {
 export function SettingsModal({ open, required = false, onClose }: SettingsModalProps) {
   const hasOpenRouterKey = useWorldStore((state) => state.hasOpenRouterKey)
   const modelTierConfig = useWorldStore((state) => state.modelTierConfig)
+  const graphPreferences = useWorldStore((state) => state.graphPreferences)
   const loadingBootstrap = useWorldStore((state) => state.loading.bootstrap)
   const setOpenRouterApiKey = useWorldStore((state) => state.setOpenRouterApiKey)
   const removeOpenRouterApiKey = useWorldStore((state) => state.removeOpenRouterApiKey)
   const setModelTierConfig = useWorldStore((state) => state.setModelTierConfig)
+  const setGraphPreferences = useWorldStore((state) => state.setGraphPreferences)
 
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [draftConfig, setDraftConfig] = useState<ModelTierConfig>(modelTierConfig)
+  const [draftGraphPreferences, setDraftGraphPreferences] = useState<GraphPreferences>(graphPreferences)
 
   useEffect(() => {
     setDraftConfig(modelTierConfig)
   }, [modelTierConfig])
+
+  useEffect(() => {
+    setDraftGraphPreferences(graphPreferences)
+  }, [graphPreferences])
 
   if (!open && !required) {
     return null
@@ -38,11 +45,7 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
     }
 
     setOpenRouterApiKey(apiKeyInput.trim())
-    await setModelTierConfig({
-      low: draftConfig.low.trim() || DEFAULT_MODEL_TIER_CONFIG.low,
-      medium: draftConfig.medium.trim() || DEFAULT_MODEL_TIER_CONFIG.medium,
-      high: draftConfig.high.trim() || DEFAULT_MODEL_TIER_CONFIG.high,
-    })
+    await handleSaveMappings()
     setApiKeyInput('')
 
     if (!required) {
@@ -51,11 +54,17 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
   }
 
   async function handleSaveMappings() {
-    await setModelTierConfig({
-      low: draftConfig.low.trim() || DEFAULT_MODEL_TIER_CONFIG.low,
-      medium: draftConfig.medium.trim() || DEFAULT_MODEL_TIER_CONFIG.medium,
-      high: draftConfig.high.trim() || DEFAULT_MODEL_TIER_CONFIG.high,
-    })
+    await Promise.all([
+      setModelTierConfig({
+        low: draftConfig.low.trim() || DEFAULT_MODEL_TIER_CONFIG.low,
+        medium: draftConfig.medium.trim() || DEFAULT_MODEL_TIER_CONFIG.medium,
+        high: draftConfig.high.trim() || DEFAULT_MODEL_TIER_CONFIG.high,
+      }),
+      setGraphPreferences({
+        avoidNodeOverlap:
+          draftGraphPreferences.avoidNodeOverlap ?? DEFAULT_GRAPH_PREFERENCES.avoidNodeOverlap,
+      }),
+    ])
   }
 
   async function handleRemoveKey() {
@@ -196,6 +205,39 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
                 onChange={(value) => setDraftConfig((current) => ({ ...current, high: value }))}
               />
             </div>
+          </section>
+
+          <section className="shell-card rounded-[1.75rem] px-5 py-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="shell-label text-[0.68rem]">Graph defaults</p>
+                <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+                  Initial layout
+                </h3>
+                <p className="shell-copy mt-2 text-sm">
+                  Keep new world nodes spread out on creation instead of trusting raw model coordinates.
+                </p>
+              </div>
+            </div>
+
+            <label className="mt-4 flex items-start gap-3 rounded-[1.2rem] border border-[var(--color-border)] bg-white/4 px-4 py-3">
+              <input
+                type="checkbox"
+                checked={draftGraphPreferences.avoidNodeOverlap}
+                onChange={(event) =>
+                  setDraftGraphPreferences((current) => ({
+                    ...current,
+                    avoidNodeOverlap: event.target.checked,
+                  }))}
+                className="mt-1 h-4 w-4 rounded border border-[var(--color-input)] bg-transparent"
+              />
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text)]">Avoid node overlap</p>
+                <p className="shell-copy mt-1 text-sm">
+                  Recommended for generated worlds.
+                </p>
+              </div>
+            </label>
           </section>
         </form>
       </div>

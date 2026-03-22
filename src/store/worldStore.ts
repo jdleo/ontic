@@ -7,6 +7,7 @@ import {
 import { worldCreationService } from '../lib/worldCreation'
 import type {
   EdgePolarity,
+  GraphPreferences,
   ModelTierConfig,
   OntologyEdge,
   OntologyEdgeType,
@@ -24,6 +25,12 @@ export const DEFAULT_MODEL_TIER_CONFIG: ModelTierConfig = {
   low: 'minimax/minimax-m2.7',
   medium: 'anthropic/claude-sonnet-4.6',
   high: 'anthropic/claude-opus-4.6',
+}
+
+export const GRAPH_PREFERENCES_KEY = 'graph_preferences'
+
+export const DEFAULT_GRAPH_PREFERENCES: GraphPreferences = {
+  avoidNodeOverlap: true,
 }
 
 export type GraphSelection =
@@ -69,6 +76,7 @@ export type WorldStoreState = {
   activeMutationInput: string
   currentResult: QueryResult | null
   modelTierConfig: ModelTierConfig
+  graphPreferences: GraphPreferences
   hasOpenRouterKey: boolean
   loading: LoadingState
   workerJob: WorkerJobStatus
@@ -113,6 +121,7 @@ export type WorldStoreActions = {
   ) => Promise<void>
   deleteSelectedGraphItem: () => Promise<void>
   setModelTierConfig: (config: ModelTierConfig) => Promise<void>
+  setGraphPreferences: (preferences: GraphPreferences) => Promise<void>
   setOpenRouterApiKey: (apiKey: string) => void
   removeOpenRouterApiKey: () => void
   refreshOpenRouterKeyPresence: () => void
@@ -156,6 +165,7 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
     activeMutationInput: '',
     currentResult: null,
     modelTierConfig: DEFAULT_MODEL_TIER_CONFIG,
+    graphPreferences: DEFAULT_GRAPH_PREFERENCES,
     hasOpenRouterKey: storedApiKey.length > 0,
     loading: {
       bootstrap: false,
@@ -249,9 +259,10 @@ export function createWorldStore(
       get().setLoadingState('bootstrap', true)
 
       try {
-        const [bundle, modelTierSetting] = await Promise.all([
+        const [bundle, modelTierSetting, graphPreferencesSetting] = await Promise.all([
           get().dependencies.persistence.loadLastOpenedWorldBundle(),
           get().dependencies.persistence.getSetting<ModelTierConfig>(MODEL_TIER_CONFIG_KEY),
+          get().dependencies.persistence.getSetting<GraphPreferences>(GRAPH_PREFERENCES_KEY),
         ])
 
         if (bundle) {
@@ -260,6 +271,10 @@ export function createWorldStore(
 
         if (modelTierSetting?.value) {
           set({ modelTierConfig: modelTierSetting.value })
+        }
+
+        if (graphPreferencesSetting?.value) {
+          set({ graphPreferences: graphPreferencesSetting.value })
         }
 
         get().refreshOpenRouterKeyPresence()
@@ -284,7 +299,9 @@ export function createWorldStore(
       set({ worldCreationError: null, worldCreationDebug: null })
 
       try {
-        const parsed = await get().dependencies.worldCreation.createInitialOntology(nextScenario)
+        const parsed = await get().dependencies.worldCreation.createInitialOntology(nextScenario, {
+          graphPreferences: get().graphPreferences,
+        })
 
         if (!parsed.ok) {
           set({
@@ -584,6 +601,11 @@ export function createWorldStore(
     async setModelTierConfig(config) {
       set({ modelTierConfig: config })
       await get().dependencies.persistence.saveSetting(MODEL_TIER_CONFIG_KEY, config)
+    },
+
+    async setGraphPreferences(preferences) {
+      set({ graphPreferences: preferences })
+      await get().dependencies.persistence.saveSetting(GRAPH_PREFERENCES_KEY, preferences)
     },
 
     setOpenRouterApiKey(apiKey) {

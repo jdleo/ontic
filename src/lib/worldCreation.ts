@@ -1,6 +1,6 @@
 import { z, type ZodIssue } from 'zod'
 import { ontologySchema } from '../types'
-import type { Ontology } from '../types'
+import type { GraphPreferences, Ontology } from '../types'
 import { openRouterClient, type OpenRouterResult } from './openRouter'
 
 const draftOntologySchema = z.object({
@@ -65,6 +65,10 @@ export type WorldCreationDependencies = {
   openRouter: Pick<typeof openRouterClient, 'callHeavy'>
 }
 
+export type CreateInitialOntologyOptions = {
+  graphPreferences?: GraphPreferences
+}
+
 export type WorldCreationResult =
   | { ok: true; ontology: Ontology; rawText: string; model: string }
   | { ok: false; message: string; debugMessage?: string; cause: unknown }
@@ -80,13 +84,27 @@ function createFallbackPosition(index: number) {
   }
 }
 
-function normalizeOntology(draft: DraftOntology): Ontology {
+function spreadNodes(nodes: DraftOntology['nodes']) {
+  return nodes.map((node, index) => ({
+    ...node,
+    position: createFallbackPosition(index),
+  }))
+}
+
+function normalizeOntology(
+  draft: DraftOntology,
+  options: CreateInitialOntologyOptions = {},
+): Ontology {
+  const avoidNodeOverlap = options.graphPreferences?.avoidNodeOverlap ?? true
+
   return ontologySchema.parse({
     ...draft,
-    nodes: draft.nodes.map((node, index) => ({
-      ...node,
-      position: node.position ?? createFallbackPosition(index),
-    })),
+    nodes: avoidNodeOverlap
+      ? spreadNodes(draft.nodes)
+      : draft.nodes.map((node, index) => ({
+          ...node,
+          position: node.position ?? createFallbackPosition(index),
+        })),
   })
 }
 
@@ -181,7 +199,10 @@ export class WorldCreationService {
     }
   }
 
-  async createInitialOntology(scenario: string): Promise<WorldCreationResult> {
+  async createInitialOntology(
+    scenario: string,
+    options: CreateInitialOntologyOptions = {},
+  ): Promise<WorldCreationResult> {
     const result = await this.dependencies.openRouter.callHeavy({
       prompt: buildPrompt(scenario),
       temperature: 0.2,
@@ -234,7 +255,7 @@ export class WorldCreationService {
     try {
       return {
         ok: true,
-        ontology: normalizeOntology(resolved.data),
+        ontology: normalizeOntology(resolved.data, options),
         rawText: resolved.text,
         model: resolved.model,
       }

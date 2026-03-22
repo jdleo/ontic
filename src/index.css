@@ -239,4 +239,18 @@ a {
       linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
     background-size: 32px 32px;
   }
+
+  .graph-controls button {
+    background: transparent !important;
+    color: rgb(17 17 17 / 0.9) !important;
+    border-bottom: 1px solid rgb(255 255 255 / 0.1) !important;
+  }
+
+  .graph-controls button:hover {
+    background: rgb(255 255 255 / 0.18) !important;
+  }
+
+  .graph-controls button svg {
+    fill: currentColor !important;
+  }
 }
