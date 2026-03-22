@@ -1,3 +1,4 @@
+import { type ZodIssue } from 'zod'
 import { structuredQuerySchema } from '../types'
 import type { Ontology, QueryResult, StructuredQuery } from '../types'
 import { openRouterClient } from './openRouter'
@@ -34,6 +35,17 @@ function buildExplanationPrompt(query: StructuredQuery, result: QueryResult) {
   }
 }
 
+function summarizeIssues(issues: ZodIssue[] | undefined) {
+  if (!issues?.length) {
+    return 'Validation failed for the previous structured query.'
+  }
+
+  return issues
+    .slice(0, 10)
+    .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+    .join('\n')
+}
+
 export class QueryFlowService {
   private readonly dependencies: QueryFlowDependencies
 
@@ -44,11 +56,40 @@ export class QueryFlowService {
   }
 
   async parseQuestion(question: string, ontology: Ontology) {
-    return this.dependencies.openRouter.callLight({
+    const result = await this.dependencies.openRouter.callLight({
       prompt: buildParsePrompt(question, ontology),
       temperature: 0.1,
       responseSchema: structuredQuerySchema,
     })
+
+    if (!result.ok && result.error.code === 'schema_validation_error') {
+      return this.dependencies.openRouter.callLight({
+        messages: [
+          {
+            role: 'system',
+            content: 'You repair structured query JSON. Return only corrected JSON that matches the requested schema.',
+          },
+          {
+            role: 'user',
+            content: [
+              'The previous structured query JSON failed validation.',
+              'Fix it to exactly match keys: question, timeframe, targetOutcomes, focusNodeIds, comparisonMode.',
+              'comparisonMode, if present, must be one of: single, ranked, binary.',
+              '',
+              'Validation issues:',
+              summarizeIssues(result.error.issues),
+              '',
+              'Previous JSON:',
+              result.error.rawText ?? '',
+            ].join('\n'),
+          },
+        ],
+        temperature: 0,
+        responseSchema: structuredQuerySchema,
+      })
+    }
+
+    return result
   }
 
   async explainResult(query: StructuredQuery, result: QueryResult) {
