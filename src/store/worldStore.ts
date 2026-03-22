@@ -5,12 +5,17 @@ import {
   persistence,
 } from '../db/repository'
 import type {
+  EdgePolarity,
   ModelTierConfig,
+  OntologyEdge,
+  OntologyEdgeType,
+  OntologyNodeType,
   PersistedWorldBundle,
   QueryResult,
   World,
   WorldVersion,
 } from '../types'
+import { ontologySchema } from '../types'
 
 export const OPENROUTER_API_KEY_STORAGE_KEY = 'openrouter_api_key'
 
@@ -43,6 +48,8 @@ export type StoreDependencies = {
   persistence: {
     loadLastOpenedWorldBundle: () => Promise<PersistedWorldBundle | undefined>
     setLastOpenedWorldId: (worldId: string) => Promise<void>
+    saveWorld: (world: World) => Promise<void>
+    saveVersion: (version: WorldVersion) => Promise<void>
     saveSetting: <TValue>(key: string, value: TValue) => Promise<unknown>
     getSetting: <TValue>(key: string) => Promise<{ value: TValue } | undefined>
   }
@@ -76,6 +83,29 @@ export type WorldStoreActions = {
   setActiveQueryInput: (value: string) => void
   setActiveMutationInput: (value: string) => void
   setCurrentResult: (result: QueryResult | null) => void
+  renameNode: (nodeId: string, label: string) => Promise<void>
+  moveNode: (nodeId: string, position: { x: number; y: number }) => Promise<void>
+  createEdge: (input: { source: string; target: string; type?: OntologyEdgeType }) => Promise<void>
+  updateNode: (
+    nodeId: string,
+    changes: {
+      label?: string
+      type?: OntologyNodeType
+      description?: string
+      confidence?: number
+      observed?: boolean
+    },
+  ) => Promise<void>
+  updateEdge: (
+    edgeId: string,
+    changes: {
+      type?: OntologyEdgeType
+      weight?: number
+      confidence?: number
+      polarity?: EdgePolarity
+    },
+  ) => Promise<void>
+  deleteSelectedGraphItem: () => Promise<void>
   setModelTierConfig: (config: ModelTierConfig) => Promise<void>
   setOpenRouterApiKey: (apiKey: string) => void
   removeOpenRouterApiKey: () => void
@@ -130,12 +160,69 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
   }
 }
 
+function createGraphEdgeId() {
+  return `edge-${crypto.randomUUID()}`
+}
+
 export function createWorldStore(
   dependencies: StoreDependencies = {
     persistence,
     storage: getBrowserStorage(),
   },
 ) {
+  const persistCurrentVersion = async (
+    get: () => WorldStore,
+    set: (
+      partial:
+        | Partial<WorldStore>
+        | ((state: WorldStore) => Partial<WorldStore>),
+    ) => void,
+    updater: (version: WorldVersion, world: World, selection: GraphSelection) => {
+      version: WorldVersion
+      world?: World
+      selectedGraph?: GraphSelection
+    } | null,
+  ) => {
+    const state = get()
+
+    if (!state.currentVersion || !state.currentWorld) {
+      return
+    }
+
+    const next = updater(state.currentVersion, state.currentWorld, state.selectedGraph)
+
+    if (!next) {
+      return
+    }
+
+    const validatedVersion: WorldVersion = {
+      ...next.version,
+      ontology: ontologySchema.parse(next.version.ontology),
+    }
+    const nextWorld = next.world ?? state.currentWorld
+
+    set((currentState) => ({
+      currentVersion: validatedVersion,
+      currentWorld: nextWorld,
+      versions: currentState.versions.map((candidate) =>
+        candidate.id === validatedVersion.id ? validatedVersion : candidate,
+      ),
+      worldLookup: {
+        ...currentState.worldLookup,
+        [nextWorld.id]: nextWorld,
+      },
+      selectedGraph:
+        next.selectedGraph === undefined
+          ? currentState.selectedGraph
+          : next.selectedGraph,
+    }))
+
+    await Promise.all([
+      get().dependencies.persistence.saveVersion(validatedVersion),
+      get().dependencies.persistence.saveWorld(nextWorld),
+    ])
+  }
+
   return createStore<WorldStore>((set, get) => ({
     ...createInitialState(dependencies),
 
@@ -248,6 +335,163 @@ export function createWorldStore(
 
     setCurrentResult(result) {
       set({ currentResult: result })
+    },
+
+    async renameNode(nodeId, label) {
+      const nextLabel = label.trim()
+
+      if (!nextLabel) {
+        return
+      }
+
+      await get().updateNode(nodeId, { label: nextLabel })
+    },
+
+    async moveNode(nodeId, position) {
+      await persistCurrentVersion(get, set, (version) => ({
+        version: {
+          ...version,
+          ontology: {
+            ...version.ontology,
+            nodes: version.ontology.nodes.map((node) =>
+              node.id === nodeId ? { ...node, position } : node,
+            ),
+          },
+        },
+      }))
+    },
+
+    async createEdge({ source, target, type = 'influences' }) {
+      if (source === target) {
+        return
+      }
+
+      await persistCurrentVersion(get, set, (version) => {
+        const duplicate = version.ontology.edges.find(
+          (edge) => edge.source === source && edge.target === target && edge.type === type,
+        )
+
+        if (duplicate) {
+          return null
+        }
+
+        const nextEdge: OntologyEdge = {
+          id: createGraphEdgeId(),
+          source,
+          target,
+          type,
+          data: {
+            weight: 0.5,
+            polarity: 'positive',
+            confidence: 0.65,
+          },
+        }
+
+        return {
+          version: {
+            ...version,
+            ontology: {
+              ...version.ontology,
+              edges: [...version.ontology.edges, nextEdge],
+            },
+          },
+          selectedGraph: { kind: 'edge', id: nextEdge.id },
+        }
+      })
+    },
+
+    async updateNode(nodeId, changes) {
+      await persistCurrentVersion(get, set, (version) => ({
+        version: {
+          ...version,
+          ontology: {
+            ...version.ontology,
+            nodes: version.ontology.nodes.map((node) => {
+              if (node.id !== nodeId) {
+                return node
+              }
+
+              return {
+                ...node,
+                label: changes.label?.trim() || node.label,
+                type: changes.type ?? node.type,
+                data: {
+                  ...node.data,
+                  description:
+                    'description' in changes ? changes.description : node.data.description,
+                  confidence:
+                    'confidence' in changes ? changes.confidence : node.data.confidence,
+                  observed:
+                    'observed' in changes ? changes.observed : node.data.observed,
+                },
+              }
+            }),
+          },
+        },
+      }))
+    },
+
+    async updateEdge(edgeId, changes) {
+      await persistCurrentVersion(get, set, (version) => ({
+        version: {
+          ...version,
+          ontology: {
+            ...version.ontology,
+            edges: version.ontology.edges.map((edge) => {
+              if (edge.id !== edgeId) {
+                return edge
+              }
+
+              return {
+                ...edge,
+                type: changes.type ?? edge.type,
+                data: {
+                  ...edge.data,
+                  weight: 'weight' in changes ? changes.weight : edge.data.weight,
+                  confidence:
+                    'confidence' in changes ? changes.confidence : edge.data.confidence,
+                  polarity: 'polarity' in changes ? changes.polarity : edge.data.polarity,
+                },
+              }
+            }),
+          },
+        },
+      }))
+    },
+
+    async deleteSelectedGraphItem() {
+      await persistCurrentVersion(get, set, (version, _world, selection) => {
+        if (!selection) {
+          return null
+        }
+
+        if (selection.kind === 'node') {
+          return {
+            version: {
+              ...version,
+              ontology: {
+                ...version.ontology,
+                nodes: version.ontology.nodes.filter((node) => node.id !== selection.id),
+                edges: version.ontology.edges.filter(
+                  (edge) => edge.source !== selection.id && edge.target !== selection.id,
+                ),
+              },
+            },
+            selectedGraph: null,
+          }
+        }
+
+        return {
+          version: {
+            ...version,
+            ontology: {
+              ...version.ontology,
+              edges: version.ontology.edges.filter((edge) => edge.id !== selection.id),
+            },
+          },
+          selectedGraph: null,
+        }
+      })
     },
 
     async setModelTierConfig(config) {
