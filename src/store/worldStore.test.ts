@@ -30,6 +30,7 @@ function createPersistenceMocks(bundle?: PersistedWorldBundle) {
     createWorld: vi.fn().mockResolvedValue(undefined),
     saveWorld: vi.fn().mockResolvedValue(undefined),
     saveVersion: vi.fn().mockResolvedValue(undefined),
+    saveQuery: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }
@@ -70,6 +71,27 @@ function createSimulationMocks() {
         keyDrivers: [{ label: 'Actor One', impact: 0.8 }],
         modelConfidence: 0.72,
       },
+    }),
+  }
+}
+
+function createQueryFlowMocks() {
+  return {
+    parseQuestion: vi.fn().mockResolvedValue({
+      ok: true as const,
+      data: {
+        question: 'What happens next?',
+        targetOutcomes: ['Outcome One'],
+        focusNodeIds: ['actor-1'],
+      },
+      model: 'light-model',
+      text: '{}',
+    }),
+    explainResult: vi.fn().mockResolvedValue({
+      ok: true as const,
+      data: 'Outcome One is favored because Actor One is a strong upstream driver.',
+      model: 'light-model',
+      text: 'Outcome One is favored because Actor One is a strong upstream driver.',
     }),
   }
 }
@@ -182,6 +204,7 @@ describe('worldStore', () => {
       }),
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     await store.getState().hydrate()
@@ -203,6 +226,7 @@ describe('worldStore', () => {
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -233,6 +257,7 @@ describe('worldStore', () => {
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     expect(store.getState().modelTierConfig).toEqual(DEFAULT_MODEL_TIER_CONFIG)
@@ -257,6 +282,7 @@ describe('worldStore', () => {
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     const nextPreferences: GraphPreferences = {
@@ -276,6 +302,7 @@ describe('worldStore', () => {
       storage,
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     store.getState().setOpenRouterApiKey('sk-or-v1-secret')
@@ -297,6 +324,7 @@ describe('worldStore', () => {
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -325,6 +353,7 @@ describe('worldStore', () => {
       storage: createMemoryStorage(),
       worldCreation,
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     const created = await store.getState().createWorldFromScenario({
@@ -356,6 +385,7 @@ describe('worldStore', () => {
         }),
       },
       simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
     })
 
     const created = await store.getState().createWorldFromScenario({
@@ -377,6 +407,7 @@ describe('worldStore', () => {
       storage: createMemoryStorage(),
       worldCreation: createWorldCreationMocks(),
       simulation,
+      queryFlow: createQueryFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -399,5 +430,28 @@ describe('worldStore', () => {
     expect(result?.modelConfidence).toBe(0.72)
     expect(store.getState().currentResult?.outcomes[0]?.label).toBe('Outcome')
     expect(store.getState().workerJob.state).toBe('idle')
+  })
+
+  it('parses, simulates, persists, and highlights a natural-language query', async () => {
+    const persistence = createPersistenceMocks()
+    const queryFlow = createQueryFlowMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
+      queryFlow,
+    })
+
+    await store.getState().setWorldBundle(createBundle())
+
+    const result = await store.getState().submitQuery('What happens next?')
+
+    expect(queryFlow.parseQuestion).toHaveBeenCalled()
+    expect(queryFlow.explainResult).toHaveBeenCalled()
+    expect(result?.notes?.[0]).toContain('Outcome One is favored')
+    expect(store.getState().highlightedNodeIds).toContain('actor-1')
+    expect(store.getState().highlightedEdgeIds).toContain('edge-1')
+    expect(persistence.saveQuery).toHaveBeenCalled()
   })
 })

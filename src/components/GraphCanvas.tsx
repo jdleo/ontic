@@ -58,6 +58,8 @@ type OntologyFlowEdge = Edge<OntologyCanvasEdgeData, 'ontology'>
 export function GraphCanvas() {
   const currentVersion = useWorldStore((state) => state.currentVersion)
   const selectedGraph = useWorldStore((state) => state.selectedGraph)
+  const highlightedNodeIds = useWorldStore((state) => state.highlightedNodeIds)
+  const highlightedEdgeIds = useWorldStore((state) => state.highlightedEdgeIds)
   const selectNode = useWorldStore((state) => state.selectNode)
   const selectEdge = useWorldStore((state) => state.selectEdge)
   const clearSelection = useWorldStore((state) => state.clearSelection)
@@ -179,6 +181,8 @@ export function GraphCanvas() {
               key={currentVersion.id}
               currentVersion={currentVersion}
               selectedGraph={selectedGraph}
+              highlightedNodeIds={highlightedNodeIds}
+              highlightedEdgeIds={highlightedEdgeIds}
               edges={edges}
               onNodeClick={selectNode}
               onEdgeClick={selectEdge}
@@ -195,6 +199,8 @@ export function GraphCanvas() {
 type LoadedGraphCanvasProps = {
   currentVersion: WorldVersion
   selectedGraph: GraphSelection
+  highlightedNodeIds: string[]
+  highlightedEdgeIds: string[]
   edges: OntologyFlowEdge[]
   onNodeClick: (nodeId: string | null) => void
   onEdgeClick: (edgeId: string | null) => void
@@ -205,6 +211,8 @@ type LoadedGraphCanvasProps = {
 function LoadedGraphCanvas({
   currentVersion,
   selectedGraph,
+  highlightedNodeIds,
+  highlightedEdgeIds,
   edges,
   onNodeClick,
   onEdgeClick,
@@ -225,12 +233,30 @@ function LoadedGraphCanvas({
   const nodes = flowNodes.map((node) => ({
     ...node,
     selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
+    data: {
+      node: {
+        ...node.data.node,
+        data: {
+          ...node.data.node.data,
+          attributes: {
+            ...node.data.node.data.attributes,
+            highlighted: highlightedNodeIds.includes(node.id),
+          },
+        },
+      },
+    },
+  }))
+  const decoratedEdges = edges.map((edge) => ({
+    ...edge,
+    selected:
+      (selectedGraph?.kind === 'edge' && selectedGraph.id === edge.id) ||
+      highlightedEdgeIds.includes(edge.id),
   }))
 
   return (
     <ReactFlow
       nodes={nodes}
-      edges={edges}
+      edges={decoratedEdges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       fitView
@@ -265,6 +291,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
   const [editing, setEditing] = useState(false)
 
   const confidence = data.node.data.confidence ?? 0.5
+  const highlighted = data.node.data.attributes?.highlighted === true
 
   const commitRename = () => {
     const nextLabel = draftLabel.trim()
@@ -280,7 +307,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
 
   return (
     <div
-      className={`min-w-[200px] rounded-[1.4rem] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur ${selected ? 'border-white/50 bg-black/85' : 'border-white/12 bg-black/70'}`}
+      className={`min-w-[200px] rounded-[1.4rem] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur ${selected ? 'border-white/50 bg-black/85' : highlighted ? 'border-white/30 bg-black/82 ring-1 ring-white/18' : 'border-white/12 bg-black/70'}`}
       onDoubleClick={() => {
         setDraftLabel(data.node.label)
         setEditing(true)

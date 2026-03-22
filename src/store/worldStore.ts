@@ -4,6 +4,7 @@ import {
   MODEL_TIER_CONFIG_KEY,
   persistence,
 } from '../db/repository'
+import { queryFlowService } from '../lib/queryFlow'
 import { simulationWorkerClient } from '../simulation/client'
 import { worldCreationService } from '../lib/worldCreation'
 import type {
@@ -14,7 +15,10 @@ import type {
   OntologyEdgeType,
   OntologyNodeType,
   PersistedWorldBundle,
+  QueryRecord,
   QueryResult,
+  QueryResultRecord,
+  StructuredQuery,
   World,
   WorldVersion,
 } from '../types'
@@ -60,12 +64,14 @@ export type StoreDependencies = {
     createWorld: (input: { world: World; version: WorldVersion }) => Promise<void>
     saveWorld: (world: World) => Promise<void>
     saveVersion: (version: WorldVersion) => Promise<void>
+    saveQuery: (input: { query: QueryRecord; result?: QueryResultRecord }) => Promise<void>
     saveSetting: <TValue>(key: string, value: TValue) => Promise<unknown>
     getSetting: <TValue>(key: string) => Promise<{ value: TValue } | undefined>
   }
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   worldCreation: Pick<typeof worldCreationService, 'createInitialOntology'>
   simulation: Pick<typeof simulationWorkerClient, 'run'>
+  queryFlow: Pick<typeof queryFlowService, 'parseQuestion' | 'explainResult'>
 }
 
 export type WorldStoreState = {
@@ -74,6 +80,8 @@ export type WorldStoreState = {
   versions: WorldVersion[]
   worldLookup: Record<string, World>
   selectedGraph: GraphSelection
+  highlightedNodeIds: string[]
+  highlightedEdgeIds: string[]
   activeQueryInput: string
   activeMutationInput: string
   currentResult: QueryResult | null
@@ -97,16 +105,10 @@ export type WorldStoreActions = {
   selectEdge: (edgeId: string | null) => void
   clearSelection: () => void
   setActiveQueryInput: (value: string) => void
+  submitQuery: (question: string) => Promise<QueryResult | null>
   setActiveMutationInput: (value: string) => void
   setCurrentResult: (result: QueryResult | null) => void
-  runSimulation: (query: {
-    question: string
-    timeframe?: string
-    targetOutcomes: string[]
-    focusNodeIds?: string[]
-    comparisonMode?: import('../types').ComparisonMode
-    rolloutCount?: number
-  }) => Promise<QueryResult | null>
+  runSimulation: (query: StructuredQuery & { rolloutCount?: number }) => Promise<QueryResult | null>
   renameNode: (nodeId: string, label: string) => Promise<void>
   moveNode: (nodeId: string, position: { x: number; y: number }) => Promise<void>
   createEdge: (input: { source: string; target: string; type?: OntologyEdgeType }) => Promise<void>
@@ -171,6 +173,8 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
     versions: [],
     worldLookup: {},
     selectedGraph: null,
+    highlightedNodeIds: [],
+    highlightedEdgeIds: [],
     activeQueryInput: '',
     activeMutationInput: '',
     currentResult: null,
@@ -201,6 +205,7 @@ export function createWorldStore(
     storage: getBrowserStorage(),
     worldCreation: worldCreationService,
     simulation: simulationWorkerClient,
+    queryFlow: queryFlowService,
   },
 ) {
   const persistDerivedVersion = async (
@@ -360,10 +365,12 @@ export function createWorldStore(
     async setWorldBundle(bundle) {
       if (!bundle) {
         set({
-          currentWorld: null,
-          currentVersion: null,
-          versions: [],
-          currentResult: null,
+        currentWorld: null,
+        currentVersion: null,
+        versions: [],
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
+        currentResult: null,
           worldCreationError: null,
           worldCreationDebug: null,
         })
@@ -379,6 +386,8 @@ export function createWorldStore(
         currentWorld: bundle.world,
         currentVersion,
         versions: bundle.versions,
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
         worldLookup: {
           ...state.worldLookup,
           [bundle.world.id]: bundle.world,
@@ -442,6 +451,87 @@ export function createWorldStore(
 
     setActiveQueryInput(value) {
       set({ activeQueryInput: value })
+    },
+
+    async submitQuery(question) {
+      const state = get()
+      const trimmed = question.trim()
+
+      if (!state.currentVersion || !state.currentWorld || !trimmed) {
+        return null
+      }
+
+      get().setLoadingState('query', true)
+
+      try {
+        const parsed = await get().dependencies.queryFlow.parseQuestion(
+          trimmed,
+          state.currentVersion.ontology,
+        )
+
+        if (!parsed.ok) {
+          get().setWorkerJob({
+            state: 'error',
+            task: 'query',
+            message: parsed.error.message,
+          })
+          return null
+        }
+
+        const simulationResult = await get().runSimulation(parsed.data)
+
+        if (!simulationResult) {
+          return null
+        }
+
+        const explanation = await get().dependencies.queryFlow.explainResult(parsed.data, simulationResult)
+        const result: QueryResult = {
+          ...simulationResult,
+          notes: explanation.ok
+            ? [explanation.data, ...(simulationResult.notes ?? [])]
+            : simulationResult.notes,
+        }
+
+        const timestamp = Date.now()
+        const queryRecord: QueryRecord = {
+          id: crypto.randomUUID(),
+          worldId: state.currentWorld.id,
+          versionId: state.currentVersion.id,
+          createdAt: timestamp,
+          query: parsed.data,
+        }
+        const resultRecord: QueryResultRecord = {
+          id: crypto.randomUUID(),
+          queryId: queryRecord.id,
+          createdAt: timestamp,
+          result,
+        }
+        const highlightedNodeIds = state.currentVersion.ontology.nodes
+          .filter((node) =>
+            result.keyDrivers.some((driver) => driver.label === node.label) ||
+            parsed.data.focusNodeIds?.includes(node.id),
+          )
+          .map((node) => node.id)
+        const highlightedEdgeIds = state.currentVersion.ontology.edges
+          .filter((edge) => highlightedNodeIds.includes(edge.source) || highlightedNodeIds.includes(edge.target))
+          .map((edge) => edge.id)
+
+        set({
+          activeQueryInput: trimmed,
+          currentResult: result,
+          highlightedNodeIds,
+          highlightedEdgeIds,
+        })
+
+        await get().dependencies.persistence.saveQuery({
+          query: queryRecord,
+          result: resultRecord,
+        })
+
+        return result
+      } finally {
+        get().setLoadingState('query', false)
+      }
     },
 
     setActiveMutationInput(value) {
@@ -700,6 +790,8 @@ export function createWorldStore(
     resetTransientState() {
       set((state) => ({
         selectedGraph: null,
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
         activeQueryInput: '',
         activeMutationInput: '',
         currentResult: null,
