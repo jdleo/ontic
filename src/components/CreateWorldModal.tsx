@@ -47,8 +47,9 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-sm">
-      <div className="shell-panel w-full max-w-2xl rounded-[2rem] px-5 py-5 sm:px-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 px-4 py-6 backdrop-blur-sm">
+      <div className="flex min-h-full items-start justify-center">
+      <div className="shell-panel my-auto w-full max-w-2xl rounded-[2rem] px-5 py-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="shell-label">World creation</p>
@@ -136,6 +137,7 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
             </div>
           </section>
         </form>
+      </div>
       </div>
     </div>
   )

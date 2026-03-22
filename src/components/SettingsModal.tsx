@@ -78,11 +78,12 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center px-4 py-6 ${
+      className={`fixed inset-0 z-50 overflow-y-auto px-4 py-6 ${
         required ? 'bg-black/70 backdrop-blur-md' : 'bg-black/55 backdrop-blur-sm'
       }`}
     >
-      <div className="shell-panel w-full max-w-3xl rounded-[2rem] px-5 py-5 sm:px-6">
+      <div className="flex min-h-full items-start justify-center">
+      <div className="shell-panel my-auto w-full max-w-3xl rounded-[2rem] px-5 py-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="shell-label">
@@ -240,6 +241,7 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
             </label>
           </section>
         </form>
+      </div>
       </div>
     </div>
   )

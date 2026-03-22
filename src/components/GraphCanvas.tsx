@@ -6,7 +6,6 @@ import {
   getBezierPath,
   Handle,
   MarkerType,
-  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -202,16 +201,6 @@ export function GraphCanvas() {
               className="bg-transparent"
             >
               <Background gap={32} size={1} color="var(--color-grid)" />
-              <MiniMap
-                pannable
-                zoomable
-                nodeColor={(node) => {
-                  const graphNode = currentVersion.ontology.nodes.find((item) => item.id === node.id)
-                  return graphNode ? miniMapColor(graphNode.type) : '#d6d6d6'
-                }}
-                maskColor="rgb(255 255 255 / 0.08)"
-                className="!rounded-[1.25rem] !border !border-white/12 !bg-white/8"
-              />
               <Controls
                 className="graph-controls !overflow-hidden !rounded-[1.25rem] !border !border-white/12 !bg-white/10"
                 showInteractive={false}
@@ -358,16 +347,4 @@ function edgeStrokeByPolarity(polarity: EdgePolarity | undefined) {
   }
 
   return 'rgb(255 255 255 / 0.65)'
-}
-
-function miniMapColor(type: OntologyNodeType) {
-  if (type === 'actor' || type === 'institution' || type === 'resource') {
-    return '#f1f1f1'
-  }
-
-  if (type === 'outcome') {
-    return '#e2e2e2'
-  }
-
-  return '#9f9f9f'
 }
