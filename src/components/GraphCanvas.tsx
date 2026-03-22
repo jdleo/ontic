@@ -65,18 +65,6 @@ export function GraphCanvas() {
   const deleteSelectedGraphItem = useWorldStore((state) => state.deleteSelectedGraphItem)
   const [flowNodes, setFlowNodes] = useState<OntologyFlowNode[]>([])
 
-  const nodes: OntologyFlowNode[] = currentVersion
-    ? currentVersion.ontology.nodes.map((node) => ({
-        id: node.id,
-        type: 'ontology',
-        position: node.position,
-        selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
-        data: {
-          node,
-        },
-      }))
-    : []
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target
@@ -101,8 +89,23 @@ export function GraphCanvas() {
   }, [deleteSelectedGraphItem])
 
   useEffect(() => {
-    setFlowNodes(nodes)
-  }, [nodes])
+    if (!currentVersion) {
+      setFlowNodes([])
+      return
+    }
+
+    setFlowNodes(
+      currentVersion.ontology.nodes.map((node) => ({
+        id: node.id,
+        type: 'ontology',
+        position: node.position,
+        selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
+        data: {
+          node,
+        },
+      })),
+    )
+  }, [currentVersion, selectedGraph])
 
   if (!currentVersion) {
     return (
