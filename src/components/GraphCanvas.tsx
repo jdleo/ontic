@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  applyNodeChanges,
   Background,
   BaseEdge,
   Controls,
@@ -12,6 +13,7 @@ import {
   type Edge,
   type EdgeProps,
   type Node,
+  type NodeChange,
   type NodeProps,
   type OnConnect,
 } from '@xyflow/react'
@@ -61,7 +63,7 @@ export function GraphCanvas() {
   const moveNode = useWorldStore((state) => state.moveNode)
   const createEdge = useWorldStore((state) => state.createEdge)
   const deleteSelectedGraphItem = useWorldStore((state) => state.deleteSelectedGraphItem)
-  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [flowNodes, setFlowNodes] = useState<OntologyFlowNode[]>([])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -85,10 +87,6 @@ export function GraphCanvas() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [deleteSelectedGraphItem])
-
-  useEffect(() => {
-    setDragPositions({})
-  }, [currentVersion?.id])
 
   if (!currentVersion) {
     return (
@@ -122,12 +120,16 @@ export function GraphCanvas() {
   const nodes: OntologyFlowNode[] = currentVersion.ontology.nodes.map((node) => ({
     id: node.id,
     type: 'ontology',
-    position: dragPositions[node.id] ?? node.position,
+    position: node.position,
     selected: selectedGraph?.kind === 'node' && selectedGraph.id === node.id,
     data: {
       node,
     },
   }))
+
+  useEffect(() => {
+    setFlowNodes(nodes)
+  }, [currentVersion, selectedGraph])
 
   const edges: OntologyFlowEdge[] = currentVersion.ontology.edges.map((edge) => ({
     id: edge.id,
@@ -189,7 +191,7 @@ export function GraphCanvas() {
         <div className="h-[540px] flex-1">
           <ReactFlowProvider>
             <ReactFlow
-              nodes={nodes}
+              nodes={flowNodes}
               edges={edges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
@@ -197,21 +199,13 @@ export function GraphCanvas() {
               minZoom={0.25}
               maxZoom={1.8}
               defaultEdgeOptions={{ type: 'ontology' }}
+              onNodesChange={(changes: NodeChange<OntologyFlowNode>[]) => {
+                setFlowNodes((current) => applyNodeChanges(changes, current))
+              }}
               onNodeClick={(_, node) => selectNode(node.id)}
               onEdgeClick={(_, edge) => selectEdge(edge.id)}
               onPaneClick={() => clearSelection()}
-              onNodeDrag={(_, node) => {
-                setDragPositions((current) => ({
-                  ...current,
-                  [node.id]: node.position,
-                }))
-              }}
               onNodeDragStop={(_, node) => {
-                setDragPositions((current) => {
-                  const next = { ...current }
-                  delete next[node.id]
-                  return next
-                })
                 void moveNode(node.id, node.position)
               }}
               onConnect={onConnect}
