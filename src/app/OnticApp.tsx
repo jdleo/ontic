@@ -5,28 +5,29 @@ import { SettingsModal } from '../components/SettingsModal'
 
 export function OnticApp() {
   return (
-    <div className="min-h-screen bg-transparent text-[var(--text)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col px-4 py-4 sm:px-6 sm:py-6">
-        <header className="mb-4 overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--panel-soft)] px-5 py-4 shadow-[var(--shadow)] backdrop-blur xl:px-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="min-h-screen bg-transparent text-[var(--color-text)]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[var(--shell-max-width)] flex-col px-4 py-4 sm:px-6 sm:py-6">
+        <header className="shell-panel relative mb-4 overflow-hidden rounded-[2rem] px-5 py-5 xl:px-7">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgb(255_255_255_/_0.12),transparent_60%)]" />
+          <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[var(--accent)]">
+              <p className="shell-label">
                 Ontic Workspace
               </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
-                Browser-first ontology and simulation shell
+              <h1 className="shell-display mt-3 max-w-4xl">
+                A dark editorial shell for ontology modeling and probabilistic playbooks
               </h1>
-              <p className="mt-3 max-w-2xl text-sm text-[var(--muted)] sm:text-base">
-                The workspace is now split into the left control rail, center
-                graph canvas, and right-side task panels so feature work can land
-                without reworking the root app tree.
+              <p className="shell-copy mt-4 max-w-2xl text-sm sm:text-base">
+                The shell now leans into restrained contrast, rounded high-signal
+                controls, and tokenized surfaces so future feature work can reuse
+                one coherent visual system instead of one-off styling.
               </p>
             </div>
 
-            <div className="grid gap-2 text-sm text-[var(--muted)] sm:grid-cols-3 xl:min-w-[420px]">
-              <ShellMetric label="Persistence" value="Local-first" />
-              <ShellMetric label="Inference" value="Worker-ready" />
-              <ShellMetric label="Models" value="Settings-driven" />
+            <div className="grid gap-2.5 text-sm sm:grid-cols-3 xl:min-w-[440px]">
+              <ShellMetric label="Persistence" value="Local-first state" />
+              <ShellMetric label="Inference" value="Client-side workers" />
+              <ShellMetric label="Models" value="Tiered orchestration" />
             </div>
           </div>
         </header>
@@ -50,11 +51,11 @@ type ShellMetricProps = {
 
 function ShellMetric({ label, value }: ShellMetricProps) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[rgba(8,18,34,0.55)] px-4 py-3">
-      <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--muted)]">
+    <div className="shell-card rounded-[1.4rem] px-4 py-3.5">
+      <p className="shell-label text-[0.68rem]">
         {label}
       </p>
-      <p className="mt-1 text-sm font-medium text-white">{value}</p>
+      <p className="mt-2 text-sm font-medium text-[var(--color-text)]">{value}</p>
     </div>
   )
 }
