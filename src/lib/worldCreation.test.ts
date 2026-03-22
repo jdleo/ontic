@@ -47,8 +47,59 @@ describe('WorldCreationService', () => {
 
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.ontology.nodes[0]?.position).toEqual({ x: 120, y: 120 })
-      expect(result.ontology.nodes[1]?.position).toEqual({ x: 380, y: 120 })
+      expect(result.ontology.nodes[0]?.position).toEqual({ x: 120, y: 340 })
+      expect(result.ontology.nodes[1]?.position).toEqual({ x: 440, y: 340 })
+    }
+  })
+
+  it('lays out generated nodes from upstream to downstream columns', async () => {
+    const service = new WorldCreationService({
+      openRouter: {
+        callHeavy: vi.fn().mockResolvedValue({
+          ok: true,
+          model: 'heavy-model',
+          text: '{"nodes":[]}',
+          data: {
+            nodes: [
+              { id: 'actor-1', type: 'actor', label: 'Actor', data: {} },
+              { id: 'event-1', type: 'event', label: 'Shock', data: {} },
+              { id: 'outcome-1', type: 'outcome', label: 'Outcome', data: {} },
+            ],
+            edges: [
+              {
+                id: 'edge-1',
+                source: 'actor-1',
+                target: 'event-1',
+                type: 'causes',
+                data: { confidence: 0.7 },
+              },
+              {
+                id: 'edge-2',
+                source: 'event-1',
+                target: 'outcome-1',
+                type: 'causes',
+                data: { confidence: 0.7 },
+              },
+            ],
+            variables: [],
+            actors: [],
+            events: [],
+            assumptions: [],
+          },
+        }),
+      },
+    })
+
+    const result = await service.createInitialOntology('A shock leads to an outcome.')
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const positions = Object.fromEntries(
+        result.ontology.nodes.map((node) => [node.id, node.position]),
+      )
+
+      expect(positions['actor-1']?.x).toBeLessThan(positions['event-1']?.x ?? 0)
+      expect(positions['event-1']?.x).toBeLessThan(positions['outcome-1']?.x ?? 0)
     }
   })
 

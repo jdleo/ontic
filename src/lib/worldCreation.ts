@@ -1,6 +1,6 @@
 import { z, type ZodIssue } from 'zod'
 import { ontologySchema } from '../types'
-import type { GraphPreferences, Ontology } from '../types'
+import type { GraphPreferences, Ontology, OntologyNodeType } from '../types'
 import { openRouterClient, type OpenRouterResult } from './openRouter'
 
 const draftOntologySchema = z.object({
@@ -84,11 +84,110 @@ function createFallbackPosition(index: number) {
   }
 }
 
-function spreadNodes(nodes: DraftOntology['nodes']) {
-  return nodes.map((node, index) => ({
-    ...node,
-    position: createFallbackPosition(index),
-  }))
+const nodeTypeRank: Record<OntologyNodeType, number> = {
+  actor: 0,
+  institution: 1,
+  resource: 2,
+  belief: 3,
+  constraint: 4,
+  objective: 5,
+  event: 6,
+  outcome: 7,
+}
+
+function layoutNodesByFlow(draft: DraftOntology) {
+  const nodeIds = draft.nodes.map((node) => node.id)
+  const indegree = new Map<string, number>(nodeIds.map((id) => [id, 0]))
+  const outgoing = new Map<string, string[]>(nodeIds.map((id) => [id, []]))
+
+  for (const edge of draft.edges) {
+    outgoing.get(edge.source)?.push(edge.target)
+    indegree.set(edge.target, (indegree.get(edge.target) ?? 0) + 1)
+  }
+
+  const queue = draft.nodes
+    .filter((node) => (indegree.get(node.id) ?? 0) === 0)
+    .map((node) => node.id)
+  const depth = new Map<string, number>(nodeIds.map((id) => [id, 0]))
+  const visited = new Set<string>()
+
+  while (queue.length > 0) {
+    const current = queue.shift()
+
+    if (!current) {
+      continue
+    }
+
+    visited.add(current)
+    const currentDepth = depth.get(current) ?? 0
+
+    for (const target of outgoing.get(current) ?? []) {
+      depth.set(target, Math.max(depth.get(target) ?? 0, currentDepth + 1))
+      indegree.set(target, (indegree.get(target) ?? 1) - 1)
+
+      if ((indegree.get(target) ?? 0) === 0) {
+        queue.push(target)
+      }
+    }
+  }
+
+  for (const node of draft.nodes) {
+    if (visited.has(node.id)) {
+      continue
+    }
+
+    const incomingDepth = draft.edges
+      .filter((edge) => edge.target === node.id)
+      .map((edge) => depth.get(edge.source) ?? 0)
+
+    depth.set(node.id, incomingDepth.length ? Math.max(...incomingDepth) + 1 : 0)
+  }
+
+  const columns = new Map<number, DraftOntology['nodes']>()
+
+  for (const node of draft.nodes) {
+    const column = depth.get(node.id) ?? 0
+    const existing = columns.get(column) ?? []
+    existing.push(node)
+    columns.set(column, existing)
+  }
+
+  const orderedColumns = [...columns.entries()].sort((left, right) => left[0] - right[0])
+  const columnSpacing = 320
+  const rowSpacing = 170
+  const top = 120
+  const left = 120
+
+  return orderedColumns.flatMap(([column, nodes]) => {
+    const sorted = [...nodes].sort((leftNode, rightNode) => {
+      const leftRank = nodeTypeRank[leftNode.type]
+      const rightRank = nodeTypeRank[rightNode.type]
+
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank
+      }
+
+      const leftOut = outgoing.get(leftNode.id)?.length ?? 0
+      const rightOut = outgoing.get(rightNode.id)?.length ?? 0
+
+      if (leftOut !== rightOut) {
+        return rightOut - leftOut
+      }
+
+      return leftNode.label.localeCompare(rightNode.label)
+    })
+
+    const columnHeight = Math.max(sorted.length - 1, 0) * rowSpacing
+    const startY = top - columnHeight / 2 + 220
+
+    return sorted.map((node, index) => ({
+      ...node,
+      position: {
+        x: left + column * columnSpacing,
+        y: startY + index * rowSpacing,
+      },
+    }))
+  })
 }
 
 function normalizeOntology(
@@ -100,7 +199,7 @@ function normalizeOntology(
   return ontologySchema.parse({
     ...draft,
     nodes: avoidNodeOverlap
-      ? spreadNodes(draft.nodes)
+      ? layoutNodesByFlow(draft)
       : draft.nodes.map((node, index) => ({
           ...node,
           position: node.position ?? createFallbackPosition(index),
