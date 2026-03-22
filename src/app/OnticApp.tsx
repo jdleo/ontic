@@ -4,6 +4,7 @@ import { LeftSidebar } from '../components/LeftSidebar'
 import { RightPanel } from '../components/RightPanel'
 import { SettingsModal } from '../components/SettingsModal'
 import { useWorldStore } from '../store/useWorldStore'
+import onticMark from '../assets/ontic-nobg.png'
 
 export function OnticApp() {
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -20,9 +21,16 @@ export function OnticApp() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgb(255_255_255_/_0.12),transparent_60%)]" />
           <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <p className="shell-label">
-                Ontic Workspace
-              </p>
+              <div className="flex items-center gap-3">
+                <img
+                  src={onticMark}
+                  alt="Ontic"
+                  className="h-10 w-10 object-contain opacity-95"
+                />
+                <p className="shell-label">
+                  Ontic Workspace
+                </p>
+              </div>
               <h1 className="shell-display mt-3 max-w-4xl">
                 Model access should feel like part of the editorial control surface
               </h1>
