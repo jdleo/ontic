@@ -14,6 +14,7 @@ Rolling repo preferences for work in this project.
 - Do not prefix branch names with `codex/`.
 - Use clear branch names based on the issue or task, for example `issue-1-app-shell`.
 - Prefer squash merges for this repository.
+- Use conventional-style commit subjects such as `feat: ...`, `fix: ...`, `chore: ...`, `refactor: ...`, `docs: ...`, and `test: ...`.
 
 ## Product and architecture
 
