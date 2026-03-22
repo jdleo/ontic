@@ -22,7 +22,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [ ] Local persistence for worlds, versions, settings, queries, and results
 - [ ] Easy local setup
 - [x] Explicit graph editing
-- [ ] Versioned world snapshots
+- [x] Versioned world snapshots
 - [ ] OpenRouter-based model access
 
 ## MVP stack
@@ -46,7 +46,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] Zustand app store
 - [x] Settings bootstrap for API key and model tiers
 - [x] OpenRouter wrapper with LOW, MEDIUM, HIGH model routing
-- [ ] Situation parsing flow
+- [x] Situation parsing flow
 - [ ] Query parsing and simulation flow
 - [ ] Mutation parsing and version creation flow
 - [ ] Version history and visual diffs
@@ -110,10 +110,10 @@ These live in `src/types` and must remain validated before entering app state.
 
 ### Create world from text
 
-- [ ] Enter scenario text
-- [ ] Parse to ontology with heavy model
-- [ ] Validate output
-- [ ] Save first world version
+- [x] Enter scenario text
+- [x] Parse to ontology with heavy model
+- [x] Validate output
+- [x] Save first world version
 - [x] Render graph and allow edits
 
 ### Ask question

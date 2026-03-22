@@ -102,11 +102,11 @@ export function GraphCanvas() {
           <div className="shell-card w-full max-w-3xl rounded-[1.9rem] border-dashed px-8 py-12 text-center">
             <p className="shell-label">No world loaded</p>
             <h2 className="mt-4 font-[var(--font-family-serif)] text-3xl tracking-[var(--tracking-display)] text-[var(--color-text)]">
-              Load a world to edit its ontology
+              Create a world to render its ontology
             </h2>
             <p className="shell-copy mx-auto mt-4 max-w-2xl text-sm leading-7">
-              Saved nodes and edges will render here with direct editing,
-              relation wiring, and graph navigation controls.
+              Start from the left rail with a name and scenario. Once the first
+              snapshot validates, nodes and edges appear here for branching edits.
             </p>
           </div>
         </div>

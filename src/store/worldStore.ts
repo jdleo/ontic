@@ -4,6 +4,7 @@ import {
   MODEL_TIER_CONFIG_KEY,
   persistence,
 } from '../db/repository'
+import { worldCreationService } from '../lib/worldCreation'
 import type {
   EdgePolarity,
   ModelTierConfig,
@@ -48,12 +49,14 @@ export type StoreDependencies = {
   persistence: {
     loadLastOpenedWorldBundle: () => Promise<PersistedWorldBundle | undefined>
     setLastOpenedWorldId: (worldId: string) => Promise<void>
+    createWorld: (input: { world: World; version: WorldVersion }) => Promise<void>
     saveWorld: (world: World) => Promise<void>
     saveVersion: (version: WorldVersion) => Promise<void>
     saveSetting: <TValue>(key: string, value: TValue) => Promise<unknown>
     getSetting: <TValue>(key: string) => Promise<{ value: TValue } | undefined>
   }
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+  worldCreation: Pick<typeof worldCreationService, 'createInitialOntology'>
 }
 
 export type WorldStoreState = {
@@ -69,11 +72,13 @@ export type WorldStoreState = {
   hasOpenRouterKey: boolean
   loading: LoadingState
   workerJob: WorkerJobStatus
+  worldCreationError: string | null
   dependencies: StoreDependencies
 }
 
 export type WorldStoreActions = {
   hydrate: () => Promise<void>
+  createWorldFromScenario: (input: { name: string; scenario: string }) => Promise<boolean>
   setWorldBundle: (bundle: PersistedWorldBundle | undefined) => Promise<void>
   registerWorlds: (worlds: World[]) => void
   switchVersion: (versionId: string) => Promise<void>
@@ -112,10 +117,13 @@ export type WorldStoreActions = {
   refreshOpenRouterKeyPresence: () => void
   setLoadingState: (key: keyof LoadingState, value: boolean) => void
   setWorkerJob: (status: WorkerJobStatus) => void
+  clearWorldCreationError: () => void
   resetTransientState: () => void
 }
 
 export type WorldStore = WorldStoreState & WorldStoreActions
+
+type DerivedVersionDraft = Pick<WorldVersion, 'ontology' | 'patchSummary'>
 
 function getBrowserStorage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -156,6 +164,7 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
       settings: false,
     },
     workerJob: { state: 'idle' },
+    worldCreationError: null,
     dependencies,
   }
 }
@@ -168,9 +177,10 @@ export function createWorldStore(
   dependencies: StoreDependencies = {
     persistence,
     storage: getBrowserStorage(),
+    worldCreation: worldCreationService,
   },
 ) {
-  const persistCurrentVersion = async (
+  const persistDerivedVersion = async (
     get: () => WorldStore,
     set: (
       partial:
@@ -178,7 +188,7 @@ export function createWorldStore(
         | ((state: WorldStore) => Partial<WorldStore>),
     ) => void,
     updater: (version: WorldVersion, world: World, selection: GraphSelection) => {
-      version: WorldVersion
+      version: DerivedVersionDraft
       world?: World
       selectedGraph?: GraphSelection
     } | null,
@@ -195,18 +205,25 @@ export function createWorldStore(
       return
     }
 
+    const timestamp = Date.now()
     const validatedVersion: WorldVersion = {
-      ...next.version,
+      id: crypto.randomUUID(),
+      worldId: state.currentWorld.id,
+      parentVersionId: state.currentVersion.id,
+      createdAt: timestamp,
+      patchSummary: next.version.patchSummary,
       ontology: ontologySchema.parse(next.version.ontology),
     }
-    const nextWorld = next.world ?? state.currentWorld
+    const nextWorld = next.world ?? {
+      ...state.currentWorld,
+      currentVersionId: validatedVersion.id,
+      updatedAt: timestamp,
+    }
 
     set((currentState) => ({
       currentVersion: validatedVersion,
       currentWorld: nextWorld,
-      versions: currentState.versions.map((candidate) =>
-        candidate.id === validatedVersion.id ? validatedVersion : candidate,
-      ),
+      versions: [...currentState.versions, validatedVersion],
       worldLookup: {
         ...currentState.worldLookup,
         [nextWorld.id]: nextWorld,
@@ -249,6 +266,63 @@ export function createWorldStore(
       }
     },
 
+    async createWorldFromScenario({ name, scenario }) {
+      const nextName = name.trim()
+      const nextScenario = scenario.trim()
+
+      if (!nextName || !nextScenario) {
+        set({
+          worldCreationError: 'A world name and scenario are required before creating a world.',
+        })
+        return false
+      }
+
+      get().setLoadingState('world', true)
+      set({ worldCreationError: null })
+
+      try {
+        const parsed = await get().dependencies.worldCreation.createInitialOntology(nextScenario)
+
+        if (!parsed.ok) {
+          set({ worldCreationError: parsed.message })
+          return false
+        }
+
+        const timestamp = Date.now()
+        const worldId = crypto.randomUUID()
+        const versionId = crypto.randomUUID()
+
+        const world: World = {
+          id: worldId,
+          name: nextName,
+          currentVersionId: versionId,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }
+
+        const version: WorldVersion = {
+          id: versionId,
+          worldId,
+          createdAt: timestamp,
+          ontology: parsed.ontology,
+          patchSummary: 'Initial world snapshot',
+        }
+
+        await get().dependencies.persistence.createWorld({ world, version })
+        await get().setWorldBundle({
+          world,
+          versions: [version],
+          queries: [],
+          queryResults: [],
+          mutations: [],
+        })
+
+        return true
+      } finally {
+        get().setLoadingState('world', false)
+      }
+    },
+
     async setWorldBundle(bundle) {
       if (!bundle) {
         set({
@@ -256,6 +330,7 @@ export function createWorldStore(
           currentVersion: null,
           versions: [],
           currentResult: null,
+          worldCreationError: null,
         })
         return
       }
@@ -274,6 +349,7 @@ export function createWorldStore(
           [bundle.world.id]: bundle.world,
         },
         currentResult: bundle.queryResults?.at(-1)?.result ?? null,
+        worldCreationError: null,
       }))
 
       await get().dependencies.persistence.setLastOpenedWorldId(bundle.world.id)
@@ -306,7 +382,10 @@ export function createWorldStore(
         currentWorld: nextWorld,
       })
 
-      await get().dependencies.persistence.setLastOpenedWorldId(nextWorld.id)
+      await Promise.all([
+        get().dependencies.persistence.saveWorld(nextWorld),
+        get().dependencies.persistence.setLastOpenedWorldId(nextWorld.id),
+      ])
     },
 
     selectNode(nodeId) {
@@ -348,9 +427,9 @@ export function createWorldStore(
     },
 
     async moveNode(nodeId, position) {
-      await persistCurrentVersion(get, set, (version) => ({
+      await persistDerivedVersion(get, set, (version) => ({
         version: {
-          ...version,
+          patchSummary: 'Moved node',
           ontology: {
             ...version.ontology,
             nodes: version.ontology.nodes.map((node) =>
@@ -366,7 +445,7 @@ export function createWorldStore(
         return
       }
 
-      await persistCurrentVersion(get, set, (version) => {
+      await persistDerivedVersion(get, set, (version) => {
         const duplicate = version.ontology.edges.find(
           (edge) => edge.source === source && edge.target === target && edge.type === type,
         )
@@ -389,7 +468,7 @@ export function createWorldStore(
 
         return {
           version: {
-            ...version,
+            patchSummary: 'Created edge',
             ontology: {
               ...version.ontology,
               edges: [...version.ontology.edges, nextEdge],
@@ -401,9 +480,9 @@ export function createWorldStore(
     },
 
     async updateNode(nodeId, changes) {
-      await persistCurrentVersion(get, set, (version) => ({
+      await persistDerivedVersion(get, set, (version) => ({
         version: {
-          ...version,
+          patchSummary: 'Updated node',
           ontology: {
             ...version.ontology,
             nodes: version.ontology.nodes.map((node) => {
@@ -432,9 +511,9 @@ export function createWorldStore(
     },
 
     async updateEdge(edgeId, changes) {
-      await persistCurrentVersion(get, set, (version) => ({
+      await persistDerivedVersion(get, set, (version) => ({
         version: {
-          ...version,
+          patchSummary: 'Updated edge',
           ontology: {
             ...version.ontology,
             edges: version.ontology.edges.map((edge) => {
@@ -460,7 +539,7 @@ export function createWorldStore(
     },
 
     async deleteSelectedGraphItem() {
-      await persistCurrentVersion(get, set, (version, _world, selection) => {
+      await persistDerivedVersion(get, set, (version, _world, selection) => {
         if (!selection) {
           return null
         }
@@ -468,7 +547,7 @@ export function createWorldStore(
         if (selection.kind === 'node') {
           return {
             version: {
-              ...version,
+              patchSummary: 'Deleted node',
               ontology: {
                 ...version.ontology,
                 nodes: version.ontology.nodes.filter((node) => node.id !== selection.id),
@@ -483,7 +562,7 @@ export function createWorldStore(
 
         return {
           version: {
-            ...version,
+            patchSummary: 'Deleted edge',
             ontology: {
               ...version.ontology,
               edges: version.ontology.edges.filter((edge) => edge.id !== selection.id),
@@ -530,6 +609,10 @@ export function createWorldStore(
       set({ workerJob: status })
     },
 
+    clearWorldCreationError() {
+      set({ worldCreationError: null })
+    },
+
     resetTransientState() {
       set((state) => ({
         selectedGraph: null,
@@ -537,6 +620,7 @@ export function createWorldStore(
         activeMutationInput: '',
         currentResult: null,
         workerJob: { state: 'idle' },
+        worldCreationError: null,
         loading: {
           ...state.loading,
           query: false,

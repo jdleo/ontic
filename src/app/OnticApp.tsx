@@ -32,19 +32,18 @@ export function OnticApp() {
                 </p>
               </div>
               <h1 className="shell-display mt-3 max-w-4xl">
-                Model access should feel like part of the editorial control surface
+                Turn natural-language scenarios into persistent world snapshots
               </h1>
               <p className="shell-copy mt-4 max-w-2xl text-sm sm:text-base">
-                Configure OpenRouter once, keep the mappings local, and let the
-                world model stay browser-first while LLM-assisted flows remain
-                explicitly gated.
+                Create the first ontology from text, keep it local, and branch
+                later edits without overwriting the original snapshot.
               </p>
             </div>
 
             <div className="grid gap-2.5 text-sm sm:grid-cols-3 xl:min-w-[440px]">
               <ShellMetric
                 label="Model access"
-                value={hasOpenRouterKey ? 'Configured' : 'Setup required'}
+                value={hasOpenRouterKey ? 'Parser ready' : 'Setup required'}
               />
               <ShellMetric label="Medium tier" value={modelTierConfig.medium} />
               <ShellMetric label="Heavy tier" value={modelTierConfig.high} />
