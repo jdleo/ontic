@@ -24,12 +24,14 @@ type PanelCardProps = {
 
 export function PanelCard({ eyebrow, title, body }: PanelCardProps) {
   return (
-    <section className="rounded-[22px] border border-[var(--border)] bg-[rgba(7,17,31,0.62)] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--accent-warm)]">
+    <section className="shell-card rounded-[1.5rem] p-4">
+      <p className="shell-label text-[0.7rem]">
         {eyebrow}
       </p>
-      <h3 className="mt-2 text-base font-semibold text-white">{title}</h3>
-      <p className="mt-2 text-sm text-[var(--muted)]">{body}</p>
+      <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+        {title}
+      </h3>
+      <p className="shell-copy mt-2 text-sm">{body}</p>
     </section>
   )
 }

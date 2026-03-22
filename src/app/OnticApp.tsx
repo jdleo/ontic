@@ -14,52 +14,50 @@ export function OnticApp() {
   const setupRequired = !loadingBootstrap && !hasOpenRouterKey
 
   return (
-    <div className="min-h-screen bg-transparent text-[var(--text)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 py-4 sm:px-6 sm:py-6">
-        <header className="relative mb-4 overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--panel)] p-5 shadow-[var(--shadow)] sm:p-7">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.15),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.12),transparent_28%)]" />
-          <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+    <div className="min-h-screen bg-transparent text-[var(--color-text)]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[var(--shell-max-width)] flex-col px-4 py-4 sm:px-6 sm:py-6">
+        <header className="shell-panel relative mb-4 overflow-hidden rounded-[2rem] px-5 py-5 xl:px-7">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgb(255_255_255_/_0.12),transparent_60%)]" />
+          <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">
+              <p className="shell-label">
                 Ontic Workspace
               </p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">
-                Local-first ontology modeling with explicit model control
+              <h1 className="shell-display mt-3 max-w-4xl">
+                Model access should feel like part of the editorial control surface
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--muted)] sm:text-base">
-                Worlds stay in the browser. OpenRouter setup and model tier routing
-                are now managed in-app so future parsing, mutation, and explanation
-                flows can start from a consistent local configuration.
+              <p className="shell-copy mt-4 max-w-2xl text-sm sm:text-base">
+                Configure OpenRouter once, keep the mappings local, and let the
+                world model stay browser-first while LLM-assisted flows remain
+                explicitly gated.
               </p>
             </div>
 
-            <div className="flex flex-col items-start gap-3 xl:items-end">
-              <div className="flex flex-wrap gap-2">
-                <ShellMetric
-                  label="Model access"
-                  value={hasOpenRouterKey ? 'Configured' : 'Setup required'}
-                />
-                <ShellMetric label="Light tier" value={modelTierConfig.low} />
-                <ShellMetric label="Heavy tier" value={modelTierConfig.high} />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(true)}
-                className="rounded-full border border-[var(--border)] bg-[rgba(7,17,31,0.72)] px-5 py-2.5 text-sm font-medium text-white transition hover:border-[var(--accent)]"
-              >
-                {hasOpenRouterKey ? 'Open settings' : 'Complete setup'}
-              </button>
+            <div className="grid gap-2.5 text-sm sm:grid-cols-3 xl:min-w-[440px]">
+              <ShellMetric
+                label="Model access"
+                value={hasOpenRouterKey ? 'Configured' : 'Setup required'}
+              />
+              <ShellMetric label="Medium tier" value={modelTierConfig.medium} />
+              <ShellMetric label="Heavy tier" value={modelTierConfig.high} />
             </div>
           </div>
-        </header>
 
-        {setupRequired ? (
-          <section className="mb-4 rounded-[24px] border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-5 py-4 text-sm text-[var(--text)]">
-            LLM-backed flows are blocked until an OpenRouter key is configured.
-            Local worlds remain available and removing the key will not delete them.
-          </section>
-        ) : null}
+          <div className="relative mt-5 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="shell-button-primary px-5 py-2.5 text-sm font-medium"
+            >
+              {hasOpenRouterKey ? 'Open settings' : 'Complete setup'}
+            </button>
+            {setupRequired ? (
+              <p className="shell-copy text-sm">
+                LLM-backed flows are blocked until an OpenRouter key is configured. Removing the key does not delete worlds.
+              </p>
+            ) : null}
+          </div>
+        </header>
 
         <main className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
           <LeftSidebar />
@@ -84,11 +82,11 @@ type ShellMetricProps = {
 
 function ShellMetric({ label, value }: ShellMetricProps) {
   return (
-    <div className="rounded-full border border-[var(--border)] bg-[rgba(7,17,31,0.72)] px-4 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+    <div className="shell-card rounded-[1.4rem] px-4 py-3.5">
+      <p className="shell-label text-[0.68rem]">
         {label}
       </p>
-      <p className="mt-1 text-sm font-medium text-white">{value}</p>
+      <p className="mt-2 text-sm font-medium text-[var(--color-text)]">{value}</p>
     </div>
   )
 }

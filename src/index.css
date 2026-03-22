@@ -3,9 +3,10 @@
 :root {
   color-scheme: dark;
   font-family:
-    'IBM Plex Sans',
-    'Avenir Next',
-    'Segoe UI',
+    Inter,
+    'Inter Fallback',
+    ui-sans-serif,
+    system-ui,
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -14,18 +15,77 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --app-bg: #07111f;
-  --panel: rgba(11, 21, 38, 0.86);
-  --panel-strong: rgba(13, 26, 47, 0.96);
-  --panel-soft: rgba(16, 31, 55, 0.72);
-  --border: rgba(150, 177, 214, 0.18);
-  --text: #dce9ff;
-  --muted: #86a0c5;
-  --accent: #67e8f9;
-  --accent-strong: #38bdf8;
-  --accent-warm: #f59e0b;
-  --grid: rgba(128, 165, 215, 0.08);
-  --shadow: 0 24px 80px rgba(2, 8, 18, 0.45);
+  --color-primary: oklch(92.2% 0 0);
+  --color-primary-hover: oklch(98.5% 0 0);
+  --color-primary-active: oklch(70.8% 0 0);
+  --color-secondary: oklch(26.9% 0 0);
+  --color-secondary-hover: oklch(14.5% 0 0);
+  --color-secondary-active: oklch(20.5% 0 0);
+  --color-accent: oklch(55.6% 0 0);
+  --color-background: oklch(14.5% 0 0);
+  --color-surface: oklch(20.5% 0 0);
+  --color-surface-elevated: oklch(26.9% 0 0);
+  --color-text: oklch(98.5% 0 0);
+  --color-text-muted: oklch(70.8% 0 0);
+  --color-text-subtle: rgb(255 255 255 / 0.75);
+  --color-border: rgb(255 255 255 / 0.1);
+  --color-border-subtle: rgb(255 255 255 / 0.06);
+  --color-input: rgb(255 255 255 / 0.15);
+  --color-glass: rgb(58 58 58 / 0.4);
+  --color-overlay-dark: rgb(0 0 0 / 0.4);
+  --color-grid: rgb(255 255 255 / 0.035);
+
+  --font-family-sans:
+    Inter,
+    'Inter Fallback',
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  --font-family-serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --font-family-mono:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace;
+  --font-size-body: clamp(0.875rem, 0.82rem + 0.22vw, 1rem);
+  --font-size-lead: clamp(1rem, 0.92rem + 0.38vw, 1.25rem);
+  --font-size-title: clamp(2.4rem, 1.8rem + 2vw, 4rem);
+  --font-size-section: clamp(1.125rem, 1rem + 0.55vw, 1.55rem);
+  --tracking-display: -0.04em;
+  --tracking-tight: -0.02em;
+  --tracking-label: 0.18em;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-pill: 9999px;
+
+  --shadow-sm: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shadow-md: 0 16px 36px rgb(0 0 0 / 0.18);
+  --shadow-lg: 0 28px 80px rgb(0 0 0 / 0.24);
+
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --shell-max-width: 100rem;
+  --panel-blur: 18px;
 }
 
 * {
@@ -40,11 +100,13 @@ body,
 
 body {
   margin: 0;
-  color: var(--text);
+  color: var(--color-text);
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 30%),
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent 28%),
-    linear-gradient(180deg, #0b1424 0%, var(--app-bg) 52%, #040912 100%);
+    radial-gradient(circle at top left, rgb(255 255 255 / 0.045), transparent 24%),
+    radial-gradient(circle at top right, rgb(255 255 255 / 0.028), transparent 18%),
+    linear-gradient(180deg, rgb(38 38 38 / 0.94) 0%, var(--color-background) 36%, rgb(10 10 10 / 1) 100%);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
 }
 
 button,
@@ -60,4 +122,114 @@ button {
 
 a {
   color: inherit;
+}
+
+::selection {
+  background: rgb(255 255 255 / 0.16);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p {
+    margin: 0;
+  }
+}
+
+@layer components {
+  .shell-panel {
+    border: 1px solid var(--color-border);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.02));
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(var(--panel-blur));
+  }
+
+  .shell-card {
+    border: 1px solid var(--color-border-subtle);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.042), rgb(255 255 255 / 0.018));
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(calc(var(--panel-blur) * 0.8));
+  }
+
+  .shell-card-elevated {
+    border: 1px solid var(--color-border);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0.03));
+    box-shadow: var(--shadow-md);
+  }
+
+  .shell-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-text-subtle);
+  }
+
+  .shell-display {
+    font-family: var(--font-family-serif);
+    font-size: var(--font-size-title);
+    line-height: 0.95;
+    letter-spacing: var(--tracking-display);
+    color: var(--color-text);
+  }
+
+  .shell-title {
+    font-size: var(--font-size-section);
+    font-weight: 500;
+    letter-spacing: var(--tracking-tight);
+    color: var(--color-text);
+  }
+
+  .shell-copy {
+    color: var(--color-text-muted);
+    line-height: 1.65;
+  }
+
+  .shell-pill {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: rgb(255 255 255 / 0.035);
+    color: var(--color-text-subtle);
+  }
+
+  .shell-button-primary {
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    background: var(--color-primary);
+    color: rgb(0 0 0 / 0.92);
+    transition:
+      transform var(--duration-fast) var(--ease-default),
+      background-color var(--duration-fast) var(--ease-default);
+  }
+
+  .shell-button-primary:hover {
+    background: var(--color-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .shell-button-secondary {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: rgb(255 255 255 / 0.04);
+    color: var(--color-text);
+    transition:
+      background-color var(--duration-fast) var(--ease-default),
+      border-color var(--duration-fast) var(--ease-default);
+  }
+
+  .shell-button-secondary:hover {
+    background: rgb(255 255 255 / 0.08);
+    border-color: rgb(255 255 255 / 0.18);
+  }
+
+  .shell-grid {
+    background-image:
+      linear-gradient(var(--color-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
 }

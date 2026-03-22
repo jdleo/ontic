@@ -70,22 +70,22 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center px-4 py-6 ${
-        required ? 'bg-[rgba(2,8,20,0.84)] backdrop-blur-md' : 'bg-[rgba(2,8,20,0.58)] backdrop-blur-sm'
+        required ? 'bg-black/70 backdrop-blur-md' : 'bg-black/55 backdrop-blur-sm'
       }`}
     >
-      <div className="w-full max-w-2xl rounded-[28px] border border-[var(--border)] bg-[var(--panel-strong)] p-6 shadow-[var(--shadow)]">
+      <div className="shell-panel w-full max-w-3xl rounded-[2rem] px-5 py-5 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">
+            <p className="shell-label">
               Settings
             </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-white">
+            <h2 className="shell-title mt-3 text-[clamp(1.6rem,1.35rem+0.9vw,2.15rem)]">
               {required ? 'Configure OpenRouter before continuing' : 'Model access and API key'}
             </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
+            <p className="shell-copy mt-3 max-w-2xl text-sm">
               {required
-                ? 'Ontic keeps worlds locally, but parsing and explanation flows stay blocked until an OpenRouter key is configured.'
-                : 'Manage local model routing and replace or remove the stored OpenRouter key without touching saved worlds.'}
+                ? 'Ontic keeps worlds local, but parsing and explanation flows stay blocked until an OpenRouter key is configured.'
+                : 'Manage the stored OpenRouter key and local model-tier routing without affecting saved worlds.'}
             </p>
           </div>
 
@@ -93,19 +93,24 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-white"
+              className="shell-button-secondary whitespace-nowrap px-4 py-2 text-sm"
             >
               Close
             </button>
           ) : null}
         </div>
 
-        <form className="mt-6 space-y-6" onSubmit={handleSave}>
-          <section className="rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5">
+        <form className="mt-6 space-y-5" onSubmit={handleSave}>
+          <section className="shell-card rounded-[1.75rem] px-5 py-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-white">OpenRouter API key</h3>
-                <p className="mt-2 text-sm text-[var(--muted)]">
+                <p className="shell-label text-[0.68rem]">
+                  Key status
+                </p>
+                <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+                  OpenRouter API key
+                </h3>
+                <p className="shell-copy mt-2 text-sm">
                   Status: {hasOpenRouterKey ? 'Configured as sk-or-v1-••••••••' : 'Missing'}
                 </p>
               </div>
@@ -117,7 +122,7 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
                     setApiKeyInput('')
                     void handleRemoveKey()
                   }}
-                  className="rounded-full border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] transition hover:border-[var(--accent-warm)] hover:text-white"
+                  className="shell-button-secondary whitespace-nowrap px-4 py-2 text-sm"
                 >
                   Remove key
                 </button>
@@ -125,7 +130,7 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
             </div>
 
             <label className="mt-4 block">
-              <span className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+              <span className="shell-label text-[0.68rem]">
                 {hasOpenRouterKey ? 'Replace key' : 'Add key'}
               </span>
               <input
@@ -134,7 +139,7 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
                 type="password"
                 autoComplete="off"
                 placeholder="sk-or-v1-..."
-                className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-[rgba(4,10,20,0.72)] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--accent)]"
+                className="mt-2 w-full rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[rgb(255_255_255_/_0.28)]"
               />
             </label>
 
@@ -142,19 +147,24 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
               <button
                 type="submit"
                 disabled={saveDisabled}
-                className="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-[#03111f] transition hover:bg-[var(--accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="shell-button-primary whitespace-nowrap px-5 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {hasOpenRouterKey ? 'Replace key and save settings' : 'Save key and continue'}
               </button>
             </div>
           </section>
 
-          <section className="rounded-[24px] border border-[var(--border)] bg-[var(--panel)] p-5">
-            <div className="flex items-start justify-between gap-4">
+          <section className="shell-card rounded-[1.75rem] px-5 py-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h3 className="text-base font-semibold text-white">Model tier routing</h3>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  These mappings are persisted locally and control which OpenRouter model each task tier uses.
+                <p className="shell-label text-[0.68rem]">
+                  Model routing
+                </p>
+                <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+                  Tier mappings
+                </h3>
+                <p className="shell-copy mt-2 text-sm">
+                  These defaults are stored locally and determine which OpenRouter model each task tier uses.
                 </p>
               </div>
 
@@ -163,7 +173,7 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
                 onClick={() => {
                   void handleSaveMappings()
                 }}
-                className="rounded-full border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-white"
+                className="shell-button-secondary whitespace-nowrap px-4 py-2 text-sm"
               >
                 Save mappings
               </button>
@@ -202,14 +212,14 @@ type TierInputProps = {
 function TierInput({ label, value, onChange }: TierInputProps) {
   return (
     <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+      <span className="shell-label text-[0.68rem]">
         {label}
       </span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         type="text"
-        className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-[rgba(4,10,20,0.72)] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--accent)]"
+        className="mt-2 w-full rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[rgb(255_255_255_/_0.28)]"
       />
     </label>
   )

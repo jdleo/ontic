@@ -15,9 +15,9 @@ import type {
 export const OPENROUTER_API_KEY_STORAGE_KEY = 'openrouter_api_key'
 
 export const DEFAULT_MODEL_TIER_CONFIG: ModelTierConfig = {
-  low: 'openrouter/auto',
-  medium: 'openrouter/auto',
-  high: 'openrouter/auto',
+  low: 'minimax/minimax-m2.7',
+  medium: 'anthropic/claude-sonnet-4.6',
+  high: 'anthropic/claude-opus-4.6',
 }
 
 export type GraphSelection =
