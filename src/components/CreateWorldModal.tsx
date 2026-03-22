@@ -17,12 +17,14 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
   const [worldName, setWorldName] = useState('')
   const [scenario, setScenario] = useState('')
   const [researchTopic, setResearchTopic] = useState('')
+  const [researchOpen, setResearchOpen] = useState(false)
 
   useEffect(() => {
     if (!open) {
       setWorldName('')
       setScenario('')
       setResearchTopic('')
+      setResearchOpen(false)
       clearWorldCreationError()
     }
   }, [clearWorldCreationError, open])
@@ -75,37 +77,48 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <section className="shell-card rounded-[1.75rem] px-5 py-5">
-            <div className="flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setResearchOpen((current) => !current)}
+              className="flex w-full items-start justify-between gap-4 text-left"
+            >
               <div>
                 <p className="shell-label text-[0.68rem]">Realtime research</p>
                 <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
                   Generate a search prompt
                 </h3>
                 <p className="shell-copy mt-2 text-sm">
-                  Use this when the world depends on current events and you want a clean prompt for ChatGPT, Claude, or Perplexity.
+                  Optional. Use this when the world depends on current events and you want a clean prompt for ChatGPT, Claude, or Perplexity.
                 </p>
               </div>
-            </div>
+              <span className="shell-pill shrink-0 whitespace-nowrap px-3 py-1 text-[11px]">
+                {researchOpen ? 'Hide' : 'Show'}
+              </span>
+            </button>
 
-            <label className="mt-4 block">
-              <span className="shell-label text-[0.68rem]">What should the world be about?</span>
-              <input
-                value={researchTopic}
-                onChange={(event) => setResearchTopic(event.target.value)}
-                placeholder="Current AI chip export restrictions affecting China"
-                className="mt-2 w-full rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[rgb(255_255_255_/_0.28)]"
-              />
-            </label>
+            {researchOpen ? (
+              <>
+                <label className="mt-4 block">
+                  <span className="shell-label text-[0.68rem]">What should the world be about?</span>
+                  <input
+                    value={researchTopic}
+                    onChange={(event) => setResearchTopic(event.target.value)}
+                    placeholder="Current AI chip export restrictions affecting China"
+                    className="mt-2 w-full rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[rgb(255_255_255_/_0.28)]"
+                  />
+                </label>
 
-            <label className="mt-4 block">
-              <span className="shell-label text-[0.68rem]">Prompt to paste elsewhere</span>
-              <textarea
-                readOnly
-                value={researchPrompt}
-                rows={9}
-                className="mt-2 w-full resize-none rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 font-[var(--font-family-mono)] text-sm leading-6 text-[var(--color-text)] outline-none"
-              />
-            </label>
+                <label className="mt-4 block">
+                  <span className="shell-label text-[0.68rem]">Prompt to paste elsewhere</span>
+                  <textarea
+                    readOnly
+                    value={researchPrompt}
+                    rows={9}
+                    className="mt-2 w-full resize-none rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 font-[var(--font-family-mono)] text-sm leading-6 text-[var(--color-text)] outline-none"
+                  />
+                </label>
+              </>
+            ) : null}
           </section>
 
           <section className="shell-card rounded-[1.75rem] px-5 py-5">
