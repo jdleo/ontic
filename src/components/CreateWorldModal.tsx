@@ -16,11 +16,13 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
 
   const [worldName, setWorldName] = useState('')
   const [scenario, setScenario] = useState('')
+  const [researchTopic, setResearchTopic] = useState('')
 
   useEffect(() => {
     if (!open) {
       setWorldName('')
       setScenario('')
+      setResearchTopic('')
       clearWorldCreationError()
     }
   }, [clearWorldCreationError, open])
@@ -30,6 +32,8 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
   }
 
   const submitDisabled = loadingWorld || !hasOpenRouterKey
+
+  const researchPrompt = buildRealtimeResearchPrompt(researchTopic)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -70,6 +74,40 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
         </div>
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+          <section className="shell-card rounded-[1.75rem] px-5 py-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="shell-label text-[0.68rem]">Realtime research</p>
+                <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+                  Generate a search prompt
+                </h3>
+                <p className="shell-copy mt-2 text-sm">
+                  Use this when the world depends on current events and you want a clean prompt for ChatGPT, Claude, or Perplexity.
+                </p>
+              </div>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="shell-label text-[0.68rem]">What should the world be about?</span>
+              <input
+                value={researchTopic}
+                onChange={(event) => setResearchTopic(event.target.value)}
+                placeholder="Current AI chip export restrictions affecting China"
+                className="mt-2 w-full rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 text-sm text-[var(--color-text)] outline-none transition focus:border-[rgb(255_255_255_/_0.28)]"
+              />
+            </label>
+
+            <label className="mt-4 block">
+              <span className="shell-label text-[0.68rem]">Prompt to paste elsewhere</span>
+              <textarea
+                readOnly
+                value={researchPrompt}
+                rows={9}
+                className="mt-2 w-full resize-none rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 font-[var(--font-family-mono)] text-sm leading-6 text-[var(--color-text)] outline-none"
+              />
+            </label>
+          </section>
+
           <section className="shell-card rounded-[1.75rem] px-5 py-5">
             <div className="flex items-center justify-between gap-3">
               <p className="shell-label text-[0.68rem]">Scenario input</p>
@@ -141,4 +179,45 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
       </div>
     </div>
   )
+}
+
+function buildRealtimeResearchPrompt(topic: string) {
+  const cleanedTopic = topic.trim()
+
+  if (!cleanedTopic) {
+    return [
+      'Use realtime web search to gather the latest facts, actors, constraints, incentives, dependencies, and likely outcomes for the topic I provide.',
+      'Then write a concise scenario description suitable for generating a causal world model.',
+      '',
+      'Include:',
+      '- major actors and institutions',
+      '- key resources, events, and constraints',
+      '- the most important causal links',
+      '- near-term and medium-term outcomes',
+      '- any important uncertainty or assumptions',
+      '',
+      'Return the result as plain English scenario text, not JSON.',
+      '',
+      'Topic: [replace with topic]',
+    ].join('\n')
+  }
+
+  return [
+    'Use realtime web search to gather the latest information about this topic and synthesize it into scenario text for a causal world model.',
+    '',
+    `Topic: ${cleanedTopic}`,
+    '',
+    'Instructions:',
+    '- use current/recent sources, not background knowledge alone',
+    '- identify the main actors, institutions, resources, events, constraints, and incentives',
+    '- focus on the clearest causal relationships and tensions',
+    '- include both immediate effects and likely downstream outcomes',
+    '- call out major uncertainties or disputed facts',
+    '',
+    'Output format:',
+    '- one tight scenario summary in plain English',
+    '- no JSON',
+    '- no bullets unless necessary',
+    '- write it so it can be pasted directly into a world-generation tool',
+  ].join('\n')
 }
