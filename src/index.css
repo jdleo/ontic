@@ -15,6 +15,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  /* Color system */
   --color-primary: oklch(92.2% 0 0);
   --color-primary-hover: oklch(98.5% 0 0);
   --color-primary-active: oklch(70.8% 0 0);
@@ -35,6 +36,7 @@
   --color-overlay-dark: rgb(0 0 0 / 0.4);
   --color-grid: rgb(255 255 255 / 0.035);
 
+  /* Typography */
   --font-family-sans:
     Inter,
     'Inter Fallback',
@@ -59,6 +61,7 @@
   --tracking-tight: -0.02em;
   --tracking-label: 0.18em;
 
+  /* Spacing */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -70,20 +73,24 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
+  /* Radius */
   --radius-sm: 0.75rem;
   --radius-md: 1rem;
   --radius-lg: 1.25rem;
   --radius-xl: 1.75rem;
   --radius-pill: 9999px;
 
+  /* Shadows */
   --shadow-sm: 0 8px 24px rgb(0 0 0 / 0.12);
   --shadow-md: 0 16px 36px rgb(0 0 0 / 0.18);
   --shadow-lg: 0 28px 80px rgb(0 0 0 / 0.24);
 
+  /* Motion */
   --duration-fast: 150ms;
   --duration-normal: 300ms;
   --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* Layout */
   --shell-max-width: 100rem;
   --panel-blur: 18px;
 }
