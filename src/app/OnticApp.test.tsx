@@ -64,7 +64,7 @@ describe('OnticApp', () => {
 
     expect(markup).toContain('Ontic Workspace')
     expect(markup).toContain('World creation')
-    expect(markup).toContain('Create from text')
+    expect(markup).toContain('New world')
     expect(markup).toContain('Ontology graph surface')
     expect(markup).toContain('Query, mutate, inspect, results')
   })

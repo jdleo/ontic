@@ -66,7 +66,7 @@ export function OnticApp() {
           </div>
         </header>
 
-        <main className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
+        <main className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[240px_minmax(0,1fr)_360px]">
           <LeftSidebar />
           <GraphCanvas />
           <RightPanel />
