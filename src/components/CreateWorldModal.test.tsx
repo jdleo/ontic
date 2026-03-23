@@ -90,6 +90,7 @@ describe('CreateWorldModal', () => {
     expect(markup).toContain('World name')
     expect(markup).toContain('Scenario')
     expect(markup).toContain('Parser ready')
+    expect(markup).toContain('Run normalization and repair after parsing')
   })
 
   it('shows setup guidance when the API key is missing', () => {

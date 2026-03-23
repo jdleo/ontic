@@ -63,16 +63,26 @@ const draftOntologySchema = z.object({
 type DraftOntology = z.infer<typeof draftOntologySchema>
 
 export type WorldCreationDependencies = {
-  openRouter: Pick<typeof openRouterClient, 'callHeavy'>
+  openRouter: Pick<typeof openRouterClient, 'callHeavy' | 'callMedium'>
 }
 
 export type CreateInitialOntologyOptions = {
   graphPreferences?: GraphPreferences
+  normalizeAndRepair?: boolean
 }
 
 export type WorldCreationResult =
-  | { ok: true; ontology: Ontology; rawText: string; model: string }
+  | { ok: true; ontology: Ontology; rawText: string; model: string; normalizationSummary?: string }
   | { ok: false; message: string; debugMessage?: string; cause: unknown }
+
+const normalizationResponseSchema = z.object({
+  ontology: draftOntologySchema,
+  summary: z.string().min(1),
+  changes: z.array(z.string().min(1)).default([]),
+  contradictions: z.array(z.string().min(1)).default([]),
+})
+
+type NormalizationResponse = z.infer<typeof normalizationResponseSchema>
 
 function createFallbackPosition(index: number) {
   const columns = 3
@@ -173,6 +183,25 @@ function buildPrompt(scenario: string) {
   }
 }
 
+function buildNormalizationPrompt(draft: DraftOntology) {
+  return {
+    system:
+      'You normalize and repair ontology JSON extracted from a scenario. Return only JSON.',
+    user: [
+      'Review the ontology and return an object with keys: ontology, summary, changes, contradictions.',
+      'Allowed node types: actor, institution, resource, event, belief, constraint, objective, outcome.',
+      'Allowed edge types: influences, competes_with, supports, constrains, depends_on, observes, causes.',
+      'Merge only obvious duplicates or near-identical labels.',
+      'Do not silently drop distinct concepts. If you merge, preserve useful detail in the surviving node data or in the summary.',
+      'Normalize unsupported or redundant relation choices to the closest allowed edge type.',
+      'If contradictions remain, preserve the ontology information and describe the contradiction in contradictions.',
+      'Keep the graph compact and valid.',
+      '',
+      JSON.stringify(draft),
+    ].join('\n'),
+  }
+}
+
 function summarizeIssues(issues: ZodIssue[] | undefined) {
   if (!issues?.length) {
     return 'Validation failed for the previous ontology output.'
@@ -233,6 +262,20 @@ function logWorldCreationFailure(message: string, cause: unknown) {
   })
 }
 
+function formatNormalizationSummary(result: NormalizationResponse) {
+  const parts = [result.summary.trim()]
+
+  if (result.changes.length > 0) {
+    parts.push(`Changes: ${result.changes.slice(0, 3).join('; ')}.`)
+  }
+
+  if (result.contradictions.length > 0) {
+    parts.push(`Contradictions flagged: ${result.contradictions.slice(0, 2).join('; ')}.`)
+  }
+
+  return parts.join(' ').trim()
+}
+
 export class WorldCreationService {
   private readonly dependencies: WorldCreationDependencies
 
@@ -240,6 +283,28 @@ export class WorldCreationService {
     this.dependencies = {
       openRouter: dependencies.openRouter ?? openRouterClient,
     }
+  }
+
+  private async maybeNormalizeOntology(
+    draft: DraftOntology,
+    options: CreateInitialOntologyOptions,
+  ) {
+    if (!options.normalizeAndRepair) {
+      return null
+    }
+
+    const normalization = await this.dependencies.openRouter.callMedium({
+      prompt: buildNormalizationPrompt(draft),
+      temperature: 0,
+      responseSchema: normalizationResponseSchema,
+    })
+
+    if (!normalization.ok) {
+      console.warn('[ontic] normalization skipped', normalization.error)
+      return null
+    }
+
+    return normalization
   }
 
   async createInitialOntology(
@@ -296,11 +361,17 @@ export class WorldCreationService {
     }
 
     try {
+      const normalization = await this.maybeNormalizeOntology(resolved.data, options)
+      const normalizedDraft = normalization?.ok ? normalization.data.ontology : resolved.data
+
       return {
         ok: true,
-        ontology: normalizeOntology(resolved.data, options),
+        ontology: normalizeOntology(normalizedDraft, options),
         rawText: resolved.text,
         model: resolved.model,
+        normalizationSummary: normalization?.ok
+          ? formatNormalizationSummary(normalization.data)
+          : undefined,
       }
     } catch (cause) {
       logWorldCreationFailure(

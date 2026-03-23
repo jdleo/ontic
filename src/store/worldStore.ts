@@ -100,12 +100,13 @@ export type WorldStoreState = {
   workerJob: WorkerJobStatus
   worldCreationError: string | null
   worldCreationDebug: string | null
+  worldCreationSummary: string | null
   dependencies: StoreDependencies
 }
 
 export type WorldStoreActions = {
   hydrate: () => Promise<void>
-  createWorldFromScenario: (input: { name: string; scenario: string }) => Promise<boolean>
+  createWorldFromScenario: (input: { name: string; scenario: string; normalizeAndRepair?: boolean }) => Promise<boolean>
   setWorldBundle: (bundle: PersistedWorldBundle | undefined) => Promise<void>
   registerWorlds: (worlds: World[]) => void
   switchVersion: (versionId: string) => Promise<void>
@@ -202,6 +203,7 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
     workerJob: { state: 'idle' },
     worldCreationError: null,
     worldCreationDebug: null,
+    worldCreationSummary: null,
     dependencies,
   }
 }
@@ -311,7 +313,7 @@ export function createWorldStore(
       }
     },
 
-    async createWorldFromScenario({ name, scenario }) {
+    async createWorldFromScenario({ name, scenario, normalizeAndRepair = true }) {
       const nextName = name.trim()
       const nextScenario = scenario.trim()
 
@@ -319,22 +321,25 @@ export function createWorldStore(
         set({
           worldCreationError: 'A world name and scenario are required before creating a world.',
           worldCreationDebug: null,
+          worldCreationSummary: null,
         })
         return false
       }
 
       get().setLoadingState('world', true)
-      set({ worldCreationError: null, worldCreationDebug: null })
+      set({ worldCreationError: null, worldCreationDebug: null, worldCreationSummary: null })
 
       try {
         const parsed = await get().dependencies.worldCreation.createInitialOntology(nextScenario, {
           graphPreferences: get().graphPreferences,
+          normalizeAndRepair,
         })
 
         if (!parsed.ok) {
           set({
             worldCreationError: parsed.message,
             worldCreationDebug: parsed.debugMessage ?? null,
+            worldCreationSummary: null,
           })
           return false
         }
@@ -356,7 +361,9 @@ export function createWorldStore(
           worldId,
           createdAt: timestamp,
           ontology: parsed.ontology,
-          patchSummary: 'Initial world snapshot',
+          patchSummary: parsed.normalizationSummary
+            ? 'Initial world snapshot · cleanup applied'
+            : 'Initial world snapshot',
         }
 
         await get().dependencies.persistence.createWorld({ world, version })
@@ -367,6 +374,7 @@ export function createWorldStore(
           queryResults: [],
           mutations: [],
         })
+        set({ worldCreationSummary: parsed.normalizationSummary ?? null })
 
         return true
       } finally {
@@ -387,6 +395,7 @@ export function createWorldStore(
           currentResult: null,
           worldCreationError: null,
           worldCreationDebug: null,
+          worldCreationSummary: null,
         })
         return
       }
@@ -416,6 +425,7 @@ export function createWorldStore(
         currentResult,
         worldCreationError: null,
         worldCreationDebug: null,
+        worldCreationSummary: null,
       }))
 
       await get().dependencies.persistence.setLastOpenedWorldId(bundle.world.id)
@@ -889,7 +899,7 @@ export function createWorldStore(
     },
 
     clearWorldCreationError() {
-      set({ worldCreationError: null, worldCreationDebug: null })
+      set({ worldCreationError: null, worldCreationDebug: null, worldCreationSummary: null })
     },
 
     resetTransientState() {
@@ -903,6 +913,7 @@ export function createWorldStore(
         workerJob: { state: 'idle' },
         worldCreationError: null,
         worldCreationDebug: null,
+        worldCreationSummary: null,
         loading: {
           ...state.loading,
           query: false,

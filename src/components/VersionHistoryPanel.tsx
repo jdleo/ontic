@@ -8,6 +8,7 @@ export function VersionHistoryPanel() {
   const versions = useWorldStore((state) => state.versions)
   const queries = useWorldStore((state) => state.queries)
   const queryResults = useWorldStore((state) => state.queryResults)
+  const worldCreationSummary = useWorldStore((state) => state.worldCreationSummary)
   const switchVersion = useWorldStore((state) => state.switchVersion)
 
   if (!currentWorld || !currentVersion) {
@@ -88,6 +89,11 @@ export function VersionHistoryPanel() {
         <p className="mt-3 text-xs text-white/56">
           To branch from an older snapshot, switch to it here and apply a mutation or graph edit from that version.
         </p>
+        {!parentVersion && worldCreationSummary ? (
+          <p className="mt-3 text-xs leading-5 text-amber-100/88">
+            Cleanup summary: {worldCreationSummary}
+          </p>
+        ) : null}
       </div>
     </section>
   )

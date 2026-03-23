@@ -40,6 +40,7 @@ describe('WorldCreationService', () => {
             assumptions: [],
           },
         }),
+        callMedium: vi.fn(),
       },
     })
 
@@ -89,6 +90,7 @@ describe('WorldCreationService', () => {
             assumptions: [],
           },
         }),
+        callMedium: vi.fn(),
       },
     })
 
@@ -115,6 +117,7 @@ describe('WorldCreationService', () => {
             message: 'bad schema',
           },
         }),
+        callMedium: vi.fn(),
       },
     })
 
@@ -143,6 +146,7 @@ describe('WorldCreationService', () => {
             cause: error,
           },
         }),
+        callMedium: vi.fn(),
       },
     })
 
@@ -220,9 +224,10 @@ describe('WorldCreationService', () => {
           assumptions: [],
         },
       })
+    const callMedium = vi.fn()
 
     const service = new WorldCreationService({
-      openRouter: { callHeavy },
+      openRouter: { callHeavy, callMedium },
     })
 
     const result = await service.createInitialOntology('A trade conflict escalates.')
@@ -233,5 +238,68 @@ describe('WorldCreationService', () => {
       temperature: 0,
       messages: expect.any(Array),
     })
+  })
+
+  it('runs the optional normalization pass and returns a cleanup summary', async () => {
+    const service = new WorldCreationService({
+      openRouter: {
+        callHeavy: vi.fn().mockResolvedValue({
+          ok: true,
+          model: 'heavy-model',
+          text: '{"nodes":[]}',
+          data: {
+            nodes: [
+              { id: 'actor-1', type: 'actor', label: 'US Government', data: {} },
+              { id: 'actor-2', type: 'actor', label: 'United States Government', data: {} },
+            ],
+            edges: [],
+            variables: [],
+            actors: [],
+            events: [],
+            assumptions: [],
+          },
+        }),
+        callMedium: vi.fn().mockResolvedValue({
+          ok: true,
+          model: 'medium-model',
+          text: '{"ontology":{}}',
+          data: {
+            ontology: {
+              nodes: [
+                {
+                  id: 'actor-1',
+                  type: 'actor',
+                  label: 'United States Government',
+                  data: {
+                    attributes: {
+                      aliases: ['US Government'],
+                    },
+                  },
+                },
+              ],
+              edges: [],
+              variables: [],
+              actors: [],
+              events: [],
+              assumptions: [],
+            },
+            summary: 'Merged duplicate actor labels.',
+            changes: ['Merged "US Government" into "United States Government".'],
+            contradictions: [],
+          },
+        }),
+      },
+    })
+
+    const result = await service.createInitialOntology('A geopolitical conflict.', {
+      normalizeAndRepair: true,
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.ontology.nodes).toHaveLength(1)
+      expect(result.normalizationSummary).toContain('Merged duplicate actor labels')
+      expect(result.normalizationSummary).toContain('Changes:')
+    }
   })
 })
