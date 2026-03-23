@@ -31,6 +31,7 @@ function createPersistenceMocks(bundle?: PersistedWorldBundle) {
     saveWorld: vi.fn().mockResolvedValue(undefined),
     saveVersion: vi.fn().mockResolvedValue(undefined),
     saveQuery: vi.fn().mockResolvedValue(undefined),
+    saveMutation: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }
@@ -92,6 +93,37 @@ function createQueryFlowMocks() {
       data: 'Outcome One is favored because Actor One is a strong upstream driver.',
       model: 'light-model',
       text: 'Outcome One is favored because Actor One is a strong upstream driver.',
+    }),
+  }
+}
+
+function createMutationFlowMocks() {
+  return {
+    parseMutation: vi.fn().mockResolvedValue({
+      ok: true as const,
+      data: {
+        addNodes: [
+          {
+            id: 'event-2',
+            type: 'event',
+            label: 'Escalation',
+            position: { x: 220, y: 220 },
+            data: {},
+          },
+        ],
+        addEdges: [
+          {
+            id: 'edge-2',
+            source: 'actor-1',
+            target: 'event-2',
+            type: 'causes',
+            data: { confidence: 0.7 },
+          },
+        ],
+        patchSummary: 'Escalation update',
+      },
+      model: 'medium-model',
+      text: '{}',
     }),
   }
 }
@@ -205,6 +237,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     await store.getState().hydrate()
@@ -227,6 +260,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -258,6 +292,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     expect(store.getState().modelTierConfig).toEqual(DEFAULT_MODEL_TIER_CONFIG)
@@ -283,6 +318,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     const nextPreferences: GraphPreferences = {
@@ -303,6 +339,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     store.getState().setOpenRouterApiKey('sk-or-v1-secret')
@@ -325,6 +362,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -354,6 +392,7 @@ describe('worldStore', () => {
       worldCreation,
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     const created = await store.getState().createWorldFromScenario({
@@ -386,6 +425,7 @@ describe('worldStore', () => {
       },
       simulation: createSimulationMocks(),
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     const created = await store.getState().createWorldFromScenario({
@@ -408,6 +448,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation,
       queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -441,6 +482,7 @@ describe('worldStore', () => {
       worldCreation: createWorldCreationMocks(),
       simulation: createSimulationMocks(),
       queryFlow,
+      mutationFlow: createMutationFlowMocks(),
     })
 
     await store.getState().setWorldBundle(createBundle())
@@ -453,5 +495,29 @@ describe('worldStore', () => {
     expect(store.getState().highlightedNodeIds).toContain('actor-1')
     expect(store.getState().highlightedEdgeIds).toContain('edge-1')
     expect(persistence.saveQuery).toHaveBeenCalled()
+  })
+
+  it('creates a new immutable version from a parsed mutation patch', async () => {
+    const persistence = createPersistenceMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
+    })
+
+    await store.getState().setWorldBundle(createBundle())
+
+    const nextVersion = await store.getState().submitMutation(
+      'Country A attacks Country B logistics hubs.',
+    )
+
+    expect(nextVersion?.parentVersionId).toBe('version-2')
+    expect(store.getState().versions).toHaveLength(3)
+    expect(store.getState().currentVersion?.patchSummary).toBe('Escalation update')
+    expect(store.getState().currentVersion?.ontology.nodes.some((node) => node.id === 'event-2')).toBe(true)
+    expect(persistence.saveMutation).toHaveBeenCalled()
   })
 })
