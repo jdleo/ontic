@@ -197,6 +197,18 @@ function createBundle(): PersistedWorldBundle {
         },
       },
     ],
+    queries: [
+      {
+        id: 'query-1',
+        worldId: 'world-1',
+        versionId: 'version-2',
+        createdAt: 3,
+        query: {
+          question: 'What happens next?',
+          targetOutcomes: ['Outcome'],
+        },
+      },
+    ],
     queryResults: [
       {
         id: 'result-1',

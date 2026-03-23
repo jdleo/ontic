@@ -49,7 +49,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] Situation parsing flow
 - [ ] Query parsing and simulation flow
 - [x] Mutation parsing and version creation flow
-- [ ] Version history and visual diffs
+- [x] Version history and visual diffs
 - [ ] Import and export
 
 ## Data model
@@ -132,7 +132,7 @@ These live in `src/types` and must remain validated before entering app state.
 - [x] Validate patch
 - [x] Create new world version
 - [ ] Recompute or rerun affected query
-- [ ] Show graph and probability deltas
+- [x] Show graph and probability deltas
 
 ## Non-goals for MVP
 

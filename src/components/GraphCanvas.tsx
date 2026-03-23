@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   applyNodeChanges,
   Background,
@@ -21,6 +21,7 @@ import '@xyflow/react/dist/style.css'
 import type { EdgePolarity, OntologyEdgeType, OntologyNode, OntologyNodeType, WorldVersion } from '../types'
 import type { GraphSelection } from '../store/worldStore'
 import { useWorldStore } from '../store/useWorldStore'
+import { diffVersions, getParentVersion, type VersionDiff } from '../lib/versioning'
 
 const nodeToneByType: Record<OntologyNodeType, string> = {
   actor: 'bg-white text-black',
@@ -43,6 +44,7 @@ const edgeTypes = {
 
 type OntologyCanvasNodeData = {
   node: OntologyNode
+  diffStatus?: 'added' | 'changed'
 }
 
 type OntologyFlowNode = Node<OntologyCanvasNodeData, 'ontology'>
@@ -51,20 +53,46 @@ type OntologyCanvasEdgeData = {
   relation: OntologyEdgeType
   confidence: number
   polarity: EdgePolarity
+  diffStatus?: 'added' | 'changed'
 }
 
 type OntologyFlowEdge = Edge<OntologyCanvasEdgeData, 'ontology'>
+
+function getDiffStatus(
+  id: string,
+  addedIds: string[],
+  changedIds: string[],
+): 'added' | 'changed' | undefined {
+  if (addedIds.includes(id)) {
+    return 'added'
+  }
+
+  if (changedIds.includes(id)) {
+    return 'changed'
+  }
+
+  return undefined
+}
 
 export function GraphCanvas() {
   const currentVersion = useWorldStore((state) => state.currentVersion)
   const selectedGraph = useWorldStore((state) => state.selectedGraph)
   const highlightedNodeIds = useWorldStore((state) => state.highlightedNodeIds)
   const highlightedEdgeIds = useWorldStore((state) => state.highlightedEdgeIds)
+  const versions = useWorldStore((state) => state.versions)
   const selectNode = useWorldStore((state) => state.selectNode)
   const selectEdge = useWorldStore((state) => state.selectEdge)
   const clearSelection = useWorldStore((state) => state.clearSelection)
   const createEdge = useWorldStore((state) => state.createEdge)
   const deleteSelectedGraphItem = useWorldStore((state) => state.deleteSelectedGraphItem)
+  const parentVersion = useMemo(
+    () => getParentVersion(versions, currentVersion),
+    [currentVersion, versions],
+  )
+  const versionDiff = useMemo(
+    () => diffVersions(parentVersion, currentVersion),
+    [currentVersion, parentVersion],
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -133,6 +161,7 @@ export function GraphCanvas() {
       relation: edge.type,
       confidence: edge.data.confidence ?? 0.5,
       polarity: edge.data.polarity ?? 'mixed',
+      diffStatus: getDiffStatus(edge.id, versionDiff.addedEdgeIds, versionDiff.changedEdgeIds),
     },
   }))
 
@@ -183,6 +212,7 @@ export function GraphCanvas() {
               selectedGraph={selectedGraph}
               highlightedNodeIds={highlightedNodeIds}
               highlightedEdgeIds={highlightedEdgeIds}
+              versionDiff={versionDiff}
               edges={edges}
               onNodeClick={selectNode}
               onEdgeClick={selectEdge}
@@ -201,6 +231,7 @@ type LoadedGraphCanvasProps = {
   selectedGraph: GraphSelection
   highlightedNodeIds: string[]
   highlightedEdgeIds: string[]
+  versionDiff: VersionDiff
   edges: OntologyFlowEdge[]
   onNodeClick: (nodeId: string | null) => void
   onEdgeClick: (edgeId: string | null) => void
@@ -213,6 +244,7 @@ function LoadedGraphCanvas({
   selectedGraph,
   highlightedNodeIds,
   highlightedEdgeIds,
+  versionDiff,
   edges,
   onNodeClick,
   onEdgeClick,
@@ -244,6 +276,7 @@ function LoadedGraphCanvas({
           },
         },
       },
+      diffStatus: getDiffStatus(node.id, versionDiff.addedNodeIds, versionDiff.changedNodeIds),
     },
   }))
   const decoratedEdges = edges.map((edge) => ({
@@ -292,6 +325,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
 
   const confidence = data.node.data.confidence ?? 0.5
   const highlighted = data.node.data.attributes?.highlighted === true
+  const diffStatus = data.diffStatus
 
   const commitRename = () => {
     const nextLabel = draftLabel.trim()
@@ -307,7 +341,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
 
   return (
     <div
-      className={`min-w-[200px] rounded-[1.4rem] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur ${selected ? 'border-white/50 bg-black/85' : highlighted ? 'border-white/30 bg-black/82 ring-1 ring-white/18' : 'border-white/12 bg-black/70'}`}
+      className={`min-w-[200px] rounded-[1.4rem] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur ${selected ? 'border-white/50 bg-black/85' : diffStatus === 'added' ? 'border-emerald-300/45 bg-emerald-300/10 ring-1 ring-emerald-300/20' : diffStatus === 'changed' ? 'border-amber-300/45 bg-amber-300/10 ring-1 ring-amber-300/16' : highlighted ? 'border-white/30 bg-black/82 ring-1 ring-white/18' : 'border-white/12 bg-black/70'}`}
       onDoubleClick={() => {
         setDraftLabel(data.node.label)
         setEditing(true)
@@ -356,6 +390,11 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
       {data.node.data.description ? (
         <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/62">{data.node.data.description}</p>
       ) : null}
+      {diffStatus ? (
+        <p className={`mt-3 text-[11px] uppercase tracking-[0.18em] ${diffStatus === 'added' ? 'text-emerald-200' : 'text-amber-200'}`}>
+          {diffStatus === 'added' ? 'Added in this version' : 'Changed in this version'}
+        </p>
+      ) : null}
 
       <Handle type="source" position={Position.Right} className="!border-none !bg-white/85" />
     </div>
@@ -374,6 +413,7 @@ function OntologyEdgeView({
 }: EdgeProps<OntologyFlowEdge>) {
   const stroke = edgeStrokeByPolarity(data?.polarity)
   const confidence = data?.confidence ?? 0.5
+  const diffStatus = data?.diffStatus
   const [path] = getBezierPath({
     sourceX,
     sourceY,
@@ -388,7 +428,7 @@ function OntologyEdgeView({
         path={path}
         style={{
           stroke,
-          strokeWidth: selected ? 3.2 : 1.4 + confidence * 2,
+          strokeWidth: selected || diffStatus ? 3.2 : 1.4 + confidence * 2,
           opacity: 0.55 + confidence * 0.45,
         }}
         markerEnd={markerEnd}
@@ -401,7 +441,7 @@ function OntologyEdgeView({
         requiredExtensions="http://www.w3.org/1999/xhtml"
       >
         <div className="flex justify-center">
-          <span className="rounded-full border border-white/12 bg-black/75 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
+          <span className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] ${diffStatus === 'added' ? 'border-emerald-300/35 bg-emerald-300/10 text-emerald-100' : diffStatus === 'changed' ? 'border-amber-300/30 bg-amber-300/10 text-amber-100' : 'border-white/12 bg-black/75 text-white/70'}`}>
             {data?.relation.replaceAll('_', ' ')} · {Math.round(confidence * 100)}%
           </span>
         </div>
