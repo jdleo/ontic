@@ -1,4 +1,4 @@
-import type { Ontology, QueryResult, StructuredQuery } from '../types'
+import type { Ontology, OntologyEdgeType, QueryResult, StructuredQuery } from '../types'
 
 export type SimulationRequest = {
   ontology: Ontology
@@ -61,6 +61,48 @@ function rankNodesByDrivers(ontology: Ontology, scores: Record<string, number>) 
     .slice(0, 5)
 }
 
+function edgeSign(type: OntologyEdgeType, polarity: 'positive' | 'negative' | 'mixed' | undefined) {
+  if (polarity === 'negative') {
+    return -1
+  }
+
+  if (polarity === 'mixed') {
+    return 0.35
+  }
+
+  if (polarity === 'positive') {
+    return 1
+  }
+
+  switch (type) {
+    case 'constrains':
+      return -1
+    case 'competes_with':
+      return -0.7
+    case 'observes':
+      return 0
+    case 'depends_on':
+      return 0.2
+    case 'influences':
+    case 'supports':
+    case 'causes':
+    default:
+      return 1
+  }
+}
+
+function applyBoundedDelta(targetScore: number, delta: number) {
+  if (delta > 0) {
+    return clamp(targetScore + (1 - targetScore) * delta)
+  }
+
+  if (delta < 0) {
+    return clamp(targetScore + targetScore * delta)
+  }
+
+  return targetScore
+}
+
 function rollOutOnce(ontology: Ontology, rolloutIndex: number): RolloutState {
   const nodeScores: Record<string, number> = {}
 
@@ -79,15 +121,10 @@ function rollOutOnce(ontology: Ontology, rolloutIndex: number): RolloutState {
       const targetScore = nodeScores[edge.target] ?? 0.5
       const weight = edge.data.weight ?? 0.5
       const confidence = edge.data.confidence ?? 0.5
-      const signed =
-        edge.data.polarity === 'negative'
-          ? -1
-          : edge.data.polarity === 'mixed'
-            ? 0.35
-            : 1
+      const signed = edgeSign(edge.type, edge.data.polarity)
       const delta = sourceScore * weight * confidence * 0.3 * signed
 
-      nodeScores[edge.target] = clamp(targetScore + delta)
+      nodeScores[edge.target] = applyBoundedDelta(targetScore, delta)
     }
   }
 
@@ -132,19 +169,41 @@ export function runSimulation({
     label,
     total,
   }))
-  const grandTotal = rawOutcomes.reduce((sum, item) => sum + item.total, 0) || 1
 
   aggregateScores = Object.fromEntries(
     Object.entries(aggregateScores).map(([nodeId, total]) => [nodeId, total / safeRolloutCount]),
   )
 
+  const outcomes = targetNodes.length === 1
+    ? (() => {
+        const target = targetNodes[0]
+        const targetProbability = Number(((aggregateScores[target.id] ?? 0) || 0).toFixed(4))
+        const negativeLabel = `Not ${target.label.charAt(0).toLowerCase()}${target.label.slice(1)}`
+
+        return [
+          {
+            label: target.label,
+            probability: targetProbability,
+          },
+          {
+            label: negativeLabel,
+            probability: Number((1 - targetProbability).toFixed(4)),
+          },
+        ]
+      })()
+    : (() => {
+        const grandTotal = rawOutcomes.reduce((sum, item) => sum + item.total, 0) || 1
+
+        return rawOutcomes.map(({ label, total }) => ({
+          label,
+          probability: Number((total / grandTotal).toFixed(4)),
+        }))
+      })()
+
   return {
     rolloutCount: safeRolloutCount,
     result: {
-      outcomes: rawOutcomes.map(({ label, total }) => ({
-        label,
-        probability: Number((total / grandTotal).toFixed(4)),
-      })),
+      outcomes,
       keyDrivers: rankNodesByDrivers(ontology, aggregateScores),
       modelConfidence: Number(
         (

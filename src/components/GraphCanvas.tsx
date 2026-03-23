@@ -119,9 +119,9 @@ export function GraphCanvas() {
 
   if (!currentVersion) {
     return (
-      <section className="shell-panel relative min-h-[540px] overflow-hidden rounded-[2rem]">
+      <section className="shell-panel relative h-[640px] overflow-hidden rounded-[2rem] xl:h-[720px]">
         <div className="shell-grid absolute inset-0" />
-        <div className="relative flex h-full min-h-[540px] flex-col">
+        <div className="relative flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
             <div>
               <p className="shell-label">Center Canvas</p>
@@ -130,17 +130,17 @@ export function GraphCanvas() {
           </div>
 
           <div className="grid flex-1 place-items-center px-6 py-8">
-          <div className="shell-card w-full max-w-3xl rounded-[1.9rem] border-dashed px-8 py-12 text-center">
-            <p className="shell-label">No world loaded</p>
-            <h2 className="mt-4 font-[var(--font-family-serif)] text-3xl tracking-[var(--tracking-display)] text-[var(--color-text)]">
-              Create a world to render its ontology
-            </h2>
-            <p className="shell-copy mx-auto mt-4 max-w-2xl text-sm leading-7">
-              Use the create-world action in the top bar. Once the first
-              snapshot validates, nodes and edges appear here for branching edits.
-            </p>
+            <div className="shell-card w-full max-w-3xl rounded-[1.9rem] border-dashed px-8 py-12 text-center">
+              <p className="shell-label">No world loaded</p>
+              <h2 className="mt-4 font-[var(--font-family-serif)] text-3xl tracking-[var(--tracking-display)] text-[var(--color-text)]">
+                Create a world to render its ontology
+              </h2>
+              <p className="shell-copy mx-auto mt-4 max-w-2xl text-sm leading-7">
+                Use the create-world action in the top bar. Once the first
+                snapshot validates, nodes and edges appear here for branching edits.
+              </p>
+            </div>
           </div>
-        </div>
         </div>
       </section>
     )
@@ -177,9 +177,9 @@ export function GraphCanvas() {
   }
 
   return (
-    <section className="shell-panel relative min-h-[540px] overflow-hidden rounded-[2rem]">
+    <section className="shell-panel relative h-[640px] overflow-hidden rounded-[2rem] xl:h-[720px]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgb(255_255_255_/_0.08),transparent_58%)]" />
-      <div className="relative flex h-full min-h-[540px] flex-col">
+      <div className="relative flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <p className="shell-label">Center Canvas</p>
@@ -204,7 +204,7 @@ export function GraphCanvas() {
           </div>
         </div>
 
-        <div className="h-[540px] flex-1">
+        <div className="min-h-0 flex-1">
           <ReactFlowProvider>
             <LoadedGraphCanvas
               key={currentVersion.id}
@@ -341,7 +341,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
 
   return (
     <div
-      className={`min-w-[200px] rounded-[1.4rem] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur ${selected ? 'border-white/50 bg-black/85' : diffStatus === 'added' ? 'border-emerald-300/45 bg-emerald-300/10 ring-1 ring-emerald-300/20' : diffStatus === 'changed' ? 'border-amber-300/45 bg-amber-300/10 ring-1 ring-amber-300/16' : highlighted ? 'border-white/30 bg-black/82 ring-1 ring-white/18' : 'border-white/12 bg-black/70'}`}
+      className={`w-[260px] max-w-[260px] rounded-[1.4rem] border px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur ${selected ? 'border-white/50 bg-black/85' : diffStatus === 'added' ? 'border-emerald-300/45 bg-emerald-300/10 ring-1 ring-emerald-300/20' : diffStatus === 'changed' ? 'border-amber-300/45 bg-amber-300/10 ring-1 ring-amber-300/16' : highlighted ? 'border-white/30 bg-black/82 ring-1 ring-white/18' : 'border-white/12 bg-black/70'}`}
       onDoubleClick={() => {
         setDraftLabel(data.node.label)
         setEditing(true)
@@ -369,7 +369,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
               className="w-full rounded-full border border-white/20 bg-white/8 px-3 py-1.5 text-sm text-white outline-none"
             />
           ) : (
-            <p className="truncate text-sm font-medium text-white">{data.node.label}</p>
+            <p className="line-clamp-3 text-sm font-medium leading-5 text-white">{data.node.label}</p>
           )}
           <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/48">{data.node.id}</p>
         </div>
@@ -388,7 +388,7 @@ function OntologyNodeCard({ data, selected }: NodeProps<OntologyFlowNode>) {
       </div>
 
       {data.node.data.description ? (
-        <p className="mt-3 line-clamp-2 text-xs leading-5 text-white/62">{data.node.data.description}</p>
+        <p className="mt-3 line-clamp-3 break-words text-xs leading-5 text-white/62">{data.node.data.description}</p>
       ) : null}
       {diffStatus ? (
         <p className={`mt-3 text-[11px] uppercase tracking-[0.18em] ${diffStatus === 'added' ? 'text-emerald-200' : 'text-amber-200'}`}>

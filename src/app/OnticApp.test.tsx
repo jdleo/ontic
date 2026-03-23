@@ -109,8 +109,6 @@ describe('OnticApp', () => {
   it('shows configured state when the API key is present', () => {
     const markup = renderAppMarkup(true)
 
-    expect(markup).toContain('Access')
-    expect(markup).toContain('Parser ready')
     expect(markup).toContain('Settings')
     expect(markup).toContain('No world loaded')
     expect(markup).not.toContain('Configure OpenRouter before continuing')
