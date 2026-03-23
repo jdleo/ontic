@@ -4,6 +4,7 @@ import {
   MODEL_TIER_CONFIG_KEY,
   persistence,
 } from '../db/repository'
+import { createExportedWorldBundle, parseExportedWorldBundle, remapImportedBundle } from '../lib/importExport'
 import { mutationFlowService } from '../lib/mutationFlow'
 import { applyMutationPatch } from '../lib/mutationPatch'
 import { queryFlowService } from '../lib/queryFlow'
@@ -64,12 +65,14 @@ export type WorkerJobStatus =
 export type StoreDependencies = {
   persistence: {
     loadLastOpenedWorldBundle: () => Promise<PersistedWorldBundle | undefined>
+    loadWorldBundle: (worldId: string) => Promise<PersistedWorldBundle | undefined>
     setLastOpenedWorldId: (worldId: string) => Promise<void>
     createWorld: (input: { world: World; version: WorldVersion }) => Promise<void>
     saveWorld: (world: World) => Promise<void>
     saveVersion: (version: WorldVersion) => Promise<void>
     saveQuery: (input: { query: QueryRecord; result?: QueryResultRecord }) => Promise<void>
     saveMutation: (input: { mutation: MutationRecord; version: WorldVersion; world: World }) => Promise<void>
+    importWorldBundle: (input: { bundle: PersistedWorldBundle }) => Promise<void>
     saveSetting: <TValue>(key: string, value: TValue) => Promise<unknown>
     getSetting: <TValue>(key: string) => Promise<{ value: TValue } | undefined>
   }
@@ -107,6 +110,8 @@ export type WorldStoreState = {
 export type WorldStoreActions = {
   hydrate: () => Promise<void>
   createWorldFromScenario: (input: { name: string; scenario: string; normalizeAndRepair?: boolean }) => Promise<boolean>
+  exportCurrentWorld: (input: { includeHistory: boolean }) => Promise<boolean>
+  importWorldFromJson: (input: { text: string }) => Promise<boolean>
   setWorldBundle: (bundle: PersistedWorldBundle | undefined) => Promise<void>
   registerWorlds: (worlds: World[]) => void
   switchVersion: (versionId: string) => Promise<void>
@@ -379,6 +384,59 @@ export function createWorldStore(
         return true
       } finally {
         get().setLoadingState('world', false)
+      }
+    },
+
+    async exportCurrentWorld({ includeHistory }) {
+      const state = get()
+
+      if (!state.currentWorld) {
+        return false
+      }
+
+      const bundle = await get().dependencies.persistence.loadWorldBundle(state.currentWorld.id)
+
+      if (!bundle) {
+        return false
+      }
+
+      const exported = createExportedWorldBundle(bundle, { includeHistory })
+      const blob = new Blob([JSON.stringify(exported, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const safeName = state.currentWorld.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+
+      link.href = url
+      link.download = `${safeName || 'ontic-world'}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+
+      return true
+    },
+
+    async importWorldFromJson({ text }) {
+      try {
+        const imported = parseExportedWorldBundle(text)
+        const remappedBundle = remapImportedBundle(imported.bundle)
+
+        await get().dependencies.persistence.importWorldBundle({
+          bundle: remappedBundle,
+        })
+        await get().setWorldBundle(remappedBundle)
+
+        return true
+      } catch (error) {
+        set({
+          worldCreationError:
+            error instanceof Error
+              ? `Import failed: ${error.message}`
+              : 'Import failed: invalid JSON bundle.',
+          worldCreationDebug: null,
+          worldCreationSummary: null,
+        })
+        return false
       }
     },
 

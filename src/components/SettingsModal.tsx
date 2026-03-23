@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useState } from 'react'
 import { DEFAULT_GRAPH_PREFERENCES, DEFAULT_MODEL_TIER_CONFIG } from '../store/worldStore'
 import { useWorldStore } from '../store/useWorldStore'
 import type { GraphPreferences, ModelTierConfig } from '../types'
@@ -10,6 +10,7 @@ type SettingsModalProps = {
 }
 
 export function SettingsModal({ open, required = false, onClose }: SettingsModalProps) {
+  const currentWorld = useWorldStore((state) => state.currentWorld)
   const hasOpenRouterKey = useWorldStore((state) => state.hasOpenRouterKey)
   const modelTierConfig = useWorldStore((state) => state.modelTierConfig)
   const graphPreferences = useWorldStore((state) => state.graphPreferences)
@@ -18,10 +19,14 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
   const removeOpenRouterApiKey = useWorldStore((state) => state.removeOpenRouterApiKey)
   const setModelTierConfig = useWorldStore((state) => state.setModelTierConfig)
   const setGraphPreferences = useWorldStore((state) => state.setGraphPreferences)
+  const exportCurrentWorld = useWorldStore((state) => state.exportCurrentWorld)
+  const importWorldFromJson = useWorldStore((state) => state.importWorldFromJson)
 
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [draftConfig, setDraftConfig] = useState<ModelTierConfig>(modelTierConfig)
   const [draftGraphPreferences, setDraftGraphPreferences] = useState<GraphPreferences>(graphPreferences)
+  const [includeHistoryInExport, setIncludeHistoryInExport] = useState(true)
+  const [dataTransferMessage, setDataTransferMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setDraftConfig(modelTierConfig)
@@ -74,6 +79,34 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
     if (!required) {
       await handleSaveMappings()
     }
+  }
+
+  async function handleExportWorld() {
+    const exported = await exportCurrentWorld({ includeHistory: includeHistoryInExport })
+
+    setDataTransferMessage(
+      exported
+        ? `Exported ${currentWorld?.name ?? 'current world'}${includeHistoryInExport ? ' with history.' : '.'}`
+        : 'No active world available to export.',
+    )
+  }
+
+  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    const text = await file.text()
+    const imported = await importWorldFromJson({ text })
+
+    setDataTransferMessage(
+      imported
+        ? 'Imported world as a new local copy.'
+        : 'Import failed. Check the validation message and try a different file.',
+    )
+    event.target.value = ''
   }
 
   return (
@@ -240,6 +273,60 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
               </div>
             </label>
           </section>
+
+          {!required ? (
+            <section className="shell-card rounded-[1.75rem] px-5 py-5">
+              <div>
+                <p className="shell-label text-[0.68rem]">Data portability</p>
+                <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+                  Import and export
+                </h3>
+                <p className="shell-copy mt-2 text-sm">
+                  Export the active world as portable JSON, or import a bundle back as a new local copy without overwriting existing data.
+                </p>
+              </div>
+
+              <label className="mt-4 flex items-start gap-3 rounded-[1.2rem] border border-[var(--color-border)] bg-white/4 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={includeHistoryInExport}
+                  onChange={(event) => setIncludeHistoryInExport(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border border-[var(--color-input)] bg-transparent"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[var(--color-text)]">Include query and mutation history</p>
+                  <p className="shell-copy mt-1 text-sm">
+                    Export queries, results, and mutation records alongside all ontology versions.
+                  </p>
+                </div>
+              </label>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleExportWorld()}
+                  disabled={!currentWorld}
+                  className="shell-button-secondary whitespace-nowrap px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Export current world
+                </button>
+
+                <label className="shell-button-secondary cursor-pointer whitespace-nowrap px-4 py-2 text-sm">
+                  Import world JSON
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={(event) => void handleImportFile(event)}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {dataTransferMessage ? (
+                <p className="shell-copy mt-3 text-sm">{dataTransferMessage}</p>
+              ) : null}
+            </section>
+          ) : null}
         </form>
       </div>
       </div>

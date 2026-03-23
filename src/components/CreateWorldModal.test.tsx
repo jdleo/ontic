@@ -23,12 +23,14 @@ function createMemoryStorage(initial: Record<string, string> = {}) {
 function createPersistenceMocks() {
   return {
     loadLastOpenedWorldBundle: vi.fn().mockResolvedValue(undefined),
+    loadWorldBundle: vi.fn().mockResolvedValue(undefined),
     setLastOpenedWorldId: vi.fn().mockResolvedValue(undefined),
     createWorld: vi.fn().mockResolvedValue(undefined),
     saveWorld: vi.fn().mockResolvedValue(undefined),
     saveVersion: vi.fn().mockResolvedValue(undefined),
     saveQuery: vi.fn().mockResolvedValue(undefined),
     saveMutation: vi.fn().mockResolvedValue(undefined),
+    importWorldBundle: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }

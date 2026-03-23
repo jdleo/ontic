@@ -175,6 +175,28 @@ describe('PersistenceRepository', () => {
     expect(restored?.world.id).toBe(second.world.id)
   })
 
+  it('imports a validated world bundle into storage', async () => {
+    const { world, version } = createWorld('world-import', 'version-import')
+    const { query, result } = createQuery('world-import', 'version-import')
+
+    await repository.importWorldBundle({
+      bundle: {
+        world,
+        versions: [version],
+        queries: [query],
+        queryResults: [result],
+        mutations: [],
+      },
+    })
+
+    const restored = await repository.loadWorldBundle(world.id)
+
+    expect(restored?.world.id).toBe('world-import')
+    expect(restored?.versions).toHaveLength(1)
+    expect(restored?.queries).toHaveLength(1)
+    expect(restored?.queryResults).toHaveLength(1)
+  })
+
   it('persists arbitrary settings records', async () => {
     await repository.saveSetting('model_tier_config', {
       low: 'openrouter/light',
