@@ -48,7 +48,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] OpenRouter wrapper with LOW, MEDIUM, HIGH model routing
 - [x] Situation parsing flow
 - [ ] Query parsing and simulation flow
-- [ ] Mutation parsing and version creation flow
+- [x] Mutation parsing and version creation flow
 - [ ] Version history and visual diffs
 - [ ] Import and export
 
@@ -127,10 +127,10 @@ These live in `src/types` and must remain validated before entering app state.
 
 ### Mutate world
 
-- [ ] Enter intervention text
-- [ ] Parse to mutation patch
-- [ ] Validate patch
-- [ ] Create new world version
+- [x] Enter intervention text
+- [x] Parse to mutation patch
+- [x] Validate patch
+- [x] Create new world version
 - [ ] Recompute or rerun affected query
 - [ ] Show graph and probability deltas
 

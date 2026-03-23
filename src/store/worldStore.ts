@@ -4,6 +4,8 @@ import {
   MODEL_TIER_CONFIG_KEY,
   persistence,
 } from '../db/repository'
+import { mutationFlowService } from '../lib/mutationFlow'
+import { applyMutationPatch } from '../lib/mutationPatch'
 import { queryFlowService } from '../lib/queryFlow'
 import { simulationWorkerClient } from '../simulation/client'
 import { worldCreationService } from '../lib/worldCreation'
@@ -19,6 +21,7 @@ import type {
   QueryResult,
   QueryResultRecord,
   StructuredQuery,
+  MutationRecord,
   World,
   WorldVersion,
 } from '../types'
@@ -65,6 +68,7 @@ export type StoreDependencies = {
     saveWorld: (world: World) => Promise<void>
     saveVersion: (version: WorldVersion) => Promise<void>
     saveQuery: (input: { query: QueryRecord; result?: QueryResultRecord }) => Promise<void>
+    saveMutation: (input: { mutation: MutationRecord; version: WorldVersion; world: World }) => Promise<void>
     saveSetting: <TValue>(key: string, value: TValue) => Promise<unknown>
     getSetting: <TValue>(key: string) => Promise<{ value: TValue } | undefined>
   }
@@ -72,6 +76,7 @@ export type StoreDependencies = {
   worldCreation: Pick<typeof worldCreationService, 'createInitialOntology'>
   simulation: Pick<typeof simulationWorkerClient, 'run'>
   queryFlow: Pick<typeof queryFlowService, 'parseQuestion' | 'explainResult'>
+  mutationFlow: Pick<typeof mutationFlowService, 'parseMutation'>
 }
 
 export type WorldStoreState = {
@@ -107,6 +112,7 @@ export type WorldStoreActions = {
   setActiveQueryInput: (value: string) => void
   submitQuery: (question: string) => Promise<QueryResult | null>
   setActiveMutationInput: (value: string) => void
+  submitMutation: (instruction: string) => Promise<WorldVersion | null>
   setCurrentResult: (result: QueryResult | null) => void
   runSimulation: (query: StructuredQuery & { rolloutCount?: number }) => Promise<QueryResult | null>
   renameNode: (nodeId: string, label: string) => Promise<void>
@@ -206,6 +212,7 @@ export function createWorldStore(
     worldCreation: worldCreationService,
     simulation: simulationWorkerClient,
     queryFlow: queryFlowService,
+    mutationFlow: mutationFlowService,
   },
 ) {
   const persistDerivedVersion = async (
@@ -536,6 +543,83 @@ export function createWorldStore(
 
     setActiveMutationInput(value) {
       set({ activeMutationInput: value })
+    },
+
+    async submitMutation(instruction) {
+      const state = get()
+      const trimmed = instruction.trim()
+
+      if (!state.currentVersion || !state.currentWorld || !trimmed) {
+        return null
+      }
+
+      get().setLoadingState('mutation', true)
+
+      try {
+        const parsed = await get().dependencies.mutationFlow.parseMutation(
+          trimmed,
+          state.currentVersion.ontology,
+        )
+
+        if (!parsed.ok) {
+          get().setWorkerJob({
+            state: 'error',
+            task: 'mutation',
+            message: parsed.error.message,
+          })
+          return null
+        }
+
+        const patchedVersionDraft = applyMutationPatch(state.currentVersion, parsed.data)
+        const timestamp = Date.now()
+        const nextVersion: WorldVersion = {
+          ...patchedVersionDraft,
+          id: crypto.randomUUID(),
+          worldId: state.currentWorld.id,
+          parentVersionId: state.currentVersion.id,
+          createdAt: timestamp,
+        }
+        const nextWorld: World = {
+          ...state.currentWorld,
+          currentVersionId: nextVersion.id,
+          updatedAt: timestamp,
+        }
+        const mutationRecord: MutationRecord = {
+          id: crypto.randomUUID(),
+          worldId: state.currentWorld.id,
+          baseVersionId: state.currentVersion.id,
+          createdAt: timestamp,
+          patch: parsed.data,
+        }
+
+        set((current) => ({
+          currentWorld: nextWorld,
+          currentVersion: nextVersion,
+          versions: [...current.versions, nextVersion],
+          activeMutationInput: trimmed,
+          worldLookup: {
+            ...current.worldLookup,
+            [nextWorld.id]: nextWorld,
+          },
+        }))
+
+        await get().dependencies.persistence.saveMutation({
+          mutation: mutationRecord,
+          version: nextVersion,
+          world: nextWorld,
+        })
+
+        return nextVersion
+      } catch (error) {
+        get().setWorkerJob({
+          state: 'error',
+          task: 'mutation',
+          message: error instanceof Error ? error.message : 'Mutation failed.',
+        })
+        return null
+      } finally {
+        get().setLoadingState('mutation', false)
+      }
     },
 
     setCurrentResult(result) {
