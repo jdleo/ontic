@@ -18,12 +18,12 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 
 - [ ] Lightweight implementation
 - [ ] Browser-first UX
-- [ ] No required backend for MVP
+- [x] No required backend for MVP
 - [ ] Local persistence for worlds, versions, settings, queries, and results
-- [ ] Easy local setup
+- [x] Easy local setup
 - [x] Explicit graph editing
 - [x] Versioned world snapshots
-- [ ] OpenRouter-based model access
+- [x] OpenRouter-based model access
 
 ## MVP stack
 
@@ -35,8 +35,8 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] Dexie over IndexedDB
 - [x] React Flow graph editing and visualization
 - [x] Zod runtime validation
-- [ ] Web Worker simulation execution
-- [ ] OpenRouter client integration
+- [x] Web Worker simulation execution
+- [x] OpenRouter client integration
 
 ## Core modules
 
