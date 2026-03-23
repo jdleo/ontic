@@ -90,7 +90,8 @@ describe('OnticApp', () => {
     expect(markup).toContain('Create world')
     expect(markup).toContain('Settings')
     expect(markup).toContain('Ontology graph surface')
-    expect(markup).toContain('Query, mutate, inspect, results')
+    expect(markup).toContain('Version history')
+    expect(markup).toContain('Natural-language questions')
   })
 
   it('renders a blocking setup state when the API key is missing', () => {

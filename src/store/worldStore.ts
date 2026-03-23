@@ -7,6 +7,7 @@ import {
 import { mutationFlowService } from '../lib/mutationFlow'
 import { applyMutationPatch } from '../lib/mutationPatch'
 import { queryFlowService } from '../lib/queryFlow'
+import { getLatestQueryResultForVersion } from '../lib/versioning'
 import { simulationWorkerClient } from '../simulation/client'
 import { worldCreationService } from '../lib/worldCreation'
 import type {
@@ -84,6 +85,8 @@ export type WorldStoreState = {
   currentVersion: WorldVersion | null
   versions: WorldVersion[]
   worldLookup: Record<string, World>
+  queries: QueryRecord[]
+  queryResults: QueryResultRecord[]
   selectedGraph: GraphSelection
   highlightedNodeIds: string[]
   highlightedEdgeIds: string[]
@@ -178,6 +181,8 @@ function createInitialState(dependencies: StoreDependencies): WorldStoreState {
     currentVersion: null,
     versions: [],
     worldLookup: {},
+    queries: [],
+    queryResults: [],
     selectedGraph: null,
     highlightedNodeIds: [],
     highlightedEdgeIds: [],
@@ -372,12 +377,14 @@ export function createWorldStore(
     async setWorldBundle(bundle) {
       if (!bundle) {
         set({
-        currentWorld: null,
-        currentVersion: null,
-        versions: [],
-        highlightedNodeIds: [],
-        highlightedEdgeIds: [],
-        currentResult: null,
+          currentWorld: null,
+          currentVersion: null,
+          versions: [],
+          queries: [],
+          queryResults: [],
+          highlightedNodeIds: [],
+          highlightedEdgeIds: [],
+          currentResult: null,
           worldCreationError: null,
           worldCreationDebug: null,
         })
@@ -388,18 +395,25 @@ export function createWorldStore(
         bundle.versions.find((version) => version.id === bundle.world.currentVersionId) ??
         bundle.versions.at(-1) ??
         null
+      const queries = bundle.queries ?? []
+      const queryResults = bundle.queryResults ?? []
+      const currentResult = currentVersion
+        ? getLatestQueryResultForVersion(currentVersion.id, queries, queryResults)?.result.result ?? null
+        : null
 
       set((state) => ({
         currentWorld: bundle.world,
         currentVersion,
         versions: bundle.versions,
+        queries,
+        queryResults,
         highlightedNodeIds: [],
         highlightedEdgeIds: [],
         worldLookup: {
           ...state.worldLookup,
           [bundle.world.id]: bundle.world,
         },
-        currentResult: bundle.queryResults?.at(-1)?.result ?? null,
+        currentResult,
         worldCreationError: null,
         worldCreationDebug: null,
       }))
@@ -432,6 +446,11 @@ export function createWorldStore(
       set({
         currentVersion: version,
         currentWorld: nextWorld,
+        currentResult:
+          getLatestQueryResultForVersion(version.id, state.queries, state.queryResults)?.result.result ?? null,
+        highlightedNodeIds: [],
+        highlightedEdgeIds: [],
+        selectedGraph: null,
       })
 
       await Promise.all([
@@ -526,6 +545,8 @@ export function createWorldStore(
         set({
           activeQueryInput: trimmed,
           currentResult: result,
+          queries: [...state.queries, queryRecord],
+          queryResults: [...state.queryResults, resultRecord],
           highlightedNodeIds,
           highlightedEdgeIds,
         })
