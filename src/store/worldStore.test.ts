@@ -35,6 +35,7 @@ function createPersistenceMocks(bundle?: PersistedWorldBundle) {
     saveQuery: vi.fn().mockResolvedValue(undefined),
     saveMutation: vi.fn().mockResolvedValue(undefined),
     importWorldBundle: vi.fn().mockResolvedValue(undefined),
+    clearAllData: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }
@@ -514,6 +515,27 @@ describe('worldStore', () => {
     expect(persistence.saveQuery).toHaveBeenCalled()
   })
 
+  it('debounces repeated identical queries on the same version', async () => {
+    const persistence = createPersistenceMocks()
+    const queryFlow = createQueryFlowMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
+      queryFlow,
+      mutationFlow: createMutationFlowMocks(),
+    })
+
+    await store.getState().setWorldBundle(createBundle())
+
+    await store.getState().submitQuery('What happens next?')
+    await store.getState().submitQuery('What happens next?')
+
+    expect(queryFlow.parseQuestion).toHaveBeenCalledTimes(1)
+    expect(persistence.saveQuery).toHaveBeenCalledTimes(1)
+  })
+
   it('creates a new immutable version from a parsed mutation patch', async () => {
     const persistence = createPersistenceMocks()
     const store = createWorldStore({
@@ -558,5 +580,29 @@ describe('worldStore', () => {
     expect(persistence.importWorldBundle).toHaveBeenCalled()
     expect(store.getState().currentWorld?.id).not.toBe('world-1')
     expect(store.getState().versions).toHaveLength(2)
+  })
+
+  it('clears local data, storage, and in-memory world state', async () => {
+    const persistence = createPersistenceMocks()
+    const storage = createMemoryStorage({
+      [OPENROUTER_API_KEY_STORAGE_KEY]: 'sk-or-v1-secret',
+    })
+    const store = createWorldStore({
+      persistence,
+      storage,
+      worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
+    })
+
+    await store.getState().setWorldBundle(createBundle())
+    await store.getState().clearLocalData()
+
+    expect(persistence.clearAllData).toHaveBeenCalled()
+    expect(storage.getItem(OPENROUTER_API_KEY_STORAGE_KEY)).toBeNull()
+    expect(store.getState().currentWorld).toBeNull()
+    expect(store.getState().versions).toEqual([])
+    expect(store.getState().hasOpenRouterKey).toBe(false)
   })
 })

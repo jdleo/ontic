@@ -65,6 +65,12 @@ export function OnticApp() {
           </div>
         </header>
 
+        {loadingBootstrap ? (
+          <div className="shell-card mb-4 rounded-[1.5rem] px-4 py-3 text-sm text-[var(--color-text-muted)]">
+            Restoring the last opened world and local settings...
+          </div>
+        ) : null}
+
         {setupRequired ? (
           <div className="shell-card mb-4 rounded-[1.5rem] px-4 py-3 text-sm text-[var(--color-text-muted)]">
             LLM-backed flows are blocked until an OpenRouter key is configured. Removing the key does not delete worlds.

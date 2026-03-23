@@ -73,6 +73,7 @@ export type StoreDependencies = {
     saveQuery: (input: { query: QueryRecord; result?: QueryResultRecord }) => Promise<void>
     saveMutation: (input: { mutation: MutationRecord; version: WorldVersion; world: World }) => Promise<void>
     importWorldBundle: (input: { bundle: PersistedWorldBundle }) => Promise<void>
+    clearAllData: () => Promise<void>
     saveSetting: <TValue>(key: string, value: TValue) => Promise<unknown>
     getSetting: <TValue>(key: string) => Promise<{ value: TValue } | undefined>
   }
@@ -112,6 +113,7 @@ export type WorldStoreActions = {
   createWorldFromScenario: (input: { name: string; scenario: string; normalizeAndRepair?: boolean }) => Promise<boolean>
   exportCurrentWorld: (input: { includeHistory: boolean }) => Promise<boolean>
   importWorldFromJson: (input: { text: string }) => Promise<boolean>
+  clearLocalData: () => Promise<void>
   setWorldBundle: (bundle: PersistedWorldBundle | undefined) => Promise<void>
   registerWorlds: (worlds: World[]) => void
   switchVersion: (versionId: string) => Promise<void>
@@ -227,6 +229,9 @@ export function createWorldStore(
     mutationFlow: mutationFlowService,
   },
 ) {
+  let lastQueryFingerprint = ''
+  let lastQuerySubmittedAt = 0
+
   const persistDerivedVersion = async (
     get: () => WorldStore,
     set: (
@@ -440,6 +445,20 @@ export function createWorldStore(
       }
     },
 
+    async clearLocalData() {
+      get().setLoadingState('settings', true)
+
+      try {
+        await get().dependencies.persistence.clearAllData()
+        get().dependencies.storage.removeItem(OPENROUTER_API_KEY_STORAGE_KEY)
+        lastQueryFingerprint = ''
+        lastQuerySubmittedAt = 0
+        set(createInitialState(get().dependencies))
+      } finally {
+        get().setLoadingState('settings', false)
+      }
+    },
+
     async setWorldBundle(bundle) {
       if (!bundle) {
         set({
@@ -550,10 +569,22 @@ export function createWorldStore(
     async submitQuery(question) {
       const state = get()
       const trimmed = question.trim()
+      const fingerprint = state.currentVersion ? `${state.currentVersion.id}:${trimmed}` : ''
 
       if (!state.currentVersion || !state.currentWorld || !trimmed) {
         return null
       }
+
+      if (state.loading.query) {
+        return state.currentResult
+      }
+
+      if (fingerprint === lastQueryFingerprint && Date.now() - lastQuerySubmittedAt < 400) {
+        return state.currentResult
+      }
+
+      lastQueryFingerprint = fingerprint
+      lastQuerySubmittedAt = Date.now()
 
       get().setLoadingState('query', true)
 
