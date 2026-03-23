@@ -1,0 +1,73 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - docs/badges/test-count.json
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests with JSON report
+        run: pnpm exec vitest run --reporter=json --outputFile=tmp/vitest-report.json
+
+      - name: Generate test count badge payload
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p docs/badges
+          node <<'EOF'
+          const fs = require('node:fs')
+          const report = JSON.parse(fs.readFileSync('tmp/vitest-report.json', 'utf8'))
+          const passed = report.numPassedTests ?? 0
+          const failed = report.numFailedTests ?? 0
+          const skipped = report.numPendingTests ?? 0
+          const suffix = skipped > 0 ? `, ${skipped} skipped` : ''
+          const message = failed > 0
+            ? `${passed} passing, ${failed} failed${suffix}`
+            : `${passed} passing${suffix}`
+          const color = failed > 0 ? 'red' : passed >= 50 ? 'brightgreen' : 'green'
+          const badge = {
+            schemaVersion: 1,
+            label: 'tests',
+            message,
+            color,
+          }
+          fs.writeFileSync('docs/badges/test-count.json', `${JSON.stringify(badge, null, 2)}\n`)
+          EOF
+
+      - name: Commit badge update
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if git diff --quiet -- docs/badges/test-count.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/badges/test-count.json
+          git commit -m "chore: update test count badge"
+          git push

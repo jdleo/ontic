@@ -1,11 +1,13 @@
 # Ontic
 
+![Lint](https://github.com/jdleo/ontic/actions/workflows/lint.yml/badge.svg)
+![Build](https://github.com/jdleo/ontic/actions/workflows/build.yml/badge.svg)
+![Test](https://github.com/jdleo/ontic/actions/workflows/test.yml/badge.svg)
+![Test Count](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/jdleo/ontic/main/docs/badges/test-count.json)
 ![React](https://img.shields.io/badge/React-19-20232a?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-9-f69220?logo=pnpm&logoColor=white)
-![Local-first](https://img.shields.io/badge/architecture-local--first-111111)
-![Browser-first](https://img.shields.io/badge/runtime-browser--first-111111)
 
 Ontic is a browser-first, local-first ontology and simulation tool for modeling a situation, asking questions about it, and mutating world state over time.
 
