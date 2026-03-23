@@ -8,8 +8,8 @@ Rolling repo preferences for work in this project.
 - Create GitHub issues directly when asked, and keep them ordered by dependency when sequencing work.
 - Raise pull requests with the related issue linked in the PR body using closing language such as `Closes #<issue>`.
 - Default PR title should match the latest commit subject unless the user asks for a different title.
-- Read [SPEC.md](/Users/johnleonardo/Documents/ontic/SPEC.md) before substantial product work and keep implementation aligned with it unless the user changes scope.
-- Read [DESIGN.md](/Users/johnleonardo/Documents/ontic/DESIGN.md) before substantial UI work and keep implementation aligned with it unless the user changes direction.
+- Read [SPEC.md](/Users/johnleonardo/Documents/ontic/docs/SPEC.md) before substantial product work and keep implementation aligned with it unless the user changes scope.
+- Read [DESIGN.md](/Users/johnleonardo/Documents/ontic/docs/DESIGN.md) before substantial UI work and keep implementation aligned with it unless the user changes direction.
 - If a commit completes unchecked items in `SPEC.md`, update the relevant checkboxes in the same branch as part of that work.
 
 ## Git conventions
