@@ -43,14 +43,14 @@ function buildMutationPrompt(input: {
   }
 }
 
-function summarizeIssues(issues: Array<{ path?: Array<string | number>; message: string }> | undefined) {
+function summarizeIssues(issues: Array<{ path?: PropertyKey[]; message: string }> | undefined) {
   if (!issues?.length) {
     return 'Validation failed for the previous mutation patch.'
   }
 
   return issues
     .slice(0, 12)
-    .map((issue) => `${issue.path?.join('.') || 'root'}: ${issue.message}`)
+    .map((issue) => `${issue.path?.map((part) => String(part)).join('.') || 'root'}: ${issue.message}`)
     .join('\n')
 }
 
