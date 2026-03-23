@@ -107,6 +107,46 @@ describe('WorldCreationService', () => {
     }
   })
 
+  it('tells the model to leave unsupported top-level arrays empty unless it can match the exact schema', async () => {
+    const callHeavy = vi.fn().mockResolvedValue({
+      ok: true,
+      model: 'heavy-model',
+      text: '{"nodes":[],"edges":[],"variables":[],"actors":[],"events":[],"assumptions":[]}',
+      data: {
+        nodes: [],
+        edges: [],
+        variables: [],
+        actors: [],
+        events: [],
+        assumptions: [],
+      },
+    })
+    const service = new WorldCreationService({
+      openRouter: {
+        callHeavy,
+        callMedium: vi.fn(),
+      },
+    })
+
+    await service.createInitialOntology('Two rival coffee shops consider cutting prices.')
+
+    expect(callHeavy).toHaveBeenCalledTimes(1)
+    const prompt = callHeavy.mock.calls[0]?.[0]?.prompt
+
+    expect(prompt?.user).toContain('Variables must match exactly: { id, key, label, ownerId?, distribution }.')
+    expect(prompt?.user).toContain('If unsure, leave variables empty.')
+    expect(prompt?.user).toContain('Categorical distributions must use options, not values/weights.')
+    expect(prompt?.user).toContain('Valid categorical example: {"kind":"categorical","options":[{"label":"current","p":0.5},{"label":"discounted","p":0.5}]}')
+    expect(prompt?.user).toContain('Do not use keys named values or weights inside distribution.')
+    expect(prompt?.user).toContain('Actors must match exactly: { actorId, goals, constraints, actionSpace, riskTolerance?, timeHorizonDays? }. If unsure, leave actors empty.')
+    expect(prompt?.user).toContain('Events must match exactly: { id, label, description?, timestamp, effects? }. If unsure, leave events empty.')
+    expect(prompt?.user).toContain('Assumptions must be objects like { id, label, confidence? }. Do not return plain strings. If unsure, leave assumptions empty.')
+    expect(prompt?.user).toContain('Do not return arrays of strings for actors, events, or assumptions.')
+    expect(prompt?.user).toContain('Actor goals must be objects like [{ "label": "Preserve margin", "weight": 0.8 }], not strings.')
+    expect(prompt?.user).toContain('Event timestamps must be integer unix milliseconds, not ISO strings.')
+    expect(prompt?.user).toContain('Event effects must be objects like [{ "targetType": "node", "targetId": "shop-a", "delta": 0.2 }], not plain strings.')
+  })
+
   it('returns a user-facing validation error when the model output is invalid', async () => {
     const service = new WorldCreationService({
       openRouter: {

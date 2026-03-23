@@ -14,11 +14,91 @@ function buildParsePrompt(question: string, ontology: Ontology) {
     user: [
       'Convert this question into structured query JSON with keys: question, timeframe, targetOutcomes, focusNodeIds, comparisonMode.',
       `Available node labels: ${ontology.nodes.map((node) => `${node.label} (${node.id})`).join(', ')}`,
-      'Set targetOutcomes to the most relevant outcome labels or likely result labels if no explicit outcome node exists.',
+      'Set targetOutcomes to the ontology node labels that are the most direct semantic match for what the user is asking about.',
+      'Prefer the closest direct target in the ontology, not an indirect downstream consequence, unless the user explicitly asks about consequences or effects.',
       'Use focusNodeIds only when there are obvious directly relevant nodes.',
       '',
       question.trim(),
     ].join('\n'),
+  }
+}
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function tokenize(value: string) {
+  return normalizeText(value)
+    .split(' ')
+    .map((token) => {
+      if (token.length > 4 && token.endsWith('ies')) {
+        return `${token.slice(0, -3)}y`
+      }
+
+      if (token.length > 3 && token.endsWith('s')) {
+        return token.slice(0, -1)
+      }
+
+      return token
+    })
+    .filter((token) => token.length > 1)
+}
+
+function scoreDirectMatch(question: string, label: string) {
+  const questionTokens = new Set(tokenize(question))
+  const labelTokens = tokenize(label)
+
+  if (labelTokens.length === 0) {
+    return 0
+  }
+
+  let score = 0
+  for (const token of labelTokens) {
+    if (questionTokens.has(token)) {
+      score += token.length > 5 ? 2 : 1
+    }
+  }
+
+  const normalizedQuestion = normalizeText(question)
+  const normalizedLabel = normalizeText(label)
+  if (normalizedQuestion.includes(normalizedLabel)) {
+    score += 1
+  }
+
+  return score
+}
+
+function alignTargetsToOntology(query: StructuredQuery, ontology: Ontology): StructuredQuery {
+  if (ontology.nodes.length === 0 || query.targetOutcomes.length === 0) {
+    return query
+  }
+
+  const nodeLabels = ontology.nodes.map((node) => node.label)
+  const directMatches = nodeLabels
+    .map((label) => ({ label, score: scoreDirectMatch(query.question, label) }))
+    .filter((candidate) => candidate.score > 0)
+    .sort((left, right) => right.score - left.score)
+
+  if (directMatches.length === 0) {
+    return query
+  }
+
+  const currentBestScore = Math.max(
+    ...query.targetOutcomes.map((label) => scoreDirectMatch(query.question, label)),
+  )
+  const bestDirectMatch = directMatches[0]
+
+  if (!bestDirectMatch || bestDirectMatch.score <= currentBestScore) {
+    return query
+  }
+
+  return {
+    ...query,
+    targetOutcomes: [bestDirectMatch.label],
   }
 }
 
@@ -63,7 +143,7 @@ export class QueryFlowService {
     })
 
     if (!result.ok && result.error.code === 'schema_validation_error') {
-      return this.dependencies.openRouter.callLight({
+      const repaired = await this.dependencies.openRouter.callLight({
         messages: [
           {
             role: 'system',
@@ -87,9 +167,25 @@ export class QueryFlowService {
         temperature: 0,
         responseSchema: structuredQuerySchema,
       })
+
+      if (!repaired.ok) {
+        return repaired
+      }
+
+      return {
+        ...repaired,
+        data: alignTargetsToOntology(repaired.data, ontology),
+      }
     }
 
-    return result
+    if (!result.ok) {
+      return result
+    }
+
+    return {
+      ...result,
+      data: alignTargetsToOntology(result.data, ontology),
+    }
   }
 
   async explainResult(query: StructuredQuery, result: QueryResult) {

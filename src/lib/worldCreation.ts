@@ -95,8 +95,8 @@ function createFallbackPosition(index: number) {
   }
 }
 
-const DAGRE_NODE_WIDTH = 220
-const DAGRE_NODE_HEIGHT = 120
+const DAGRE_NODE_WIDTH = 260
+const DAGRE_NODE_HEIGHT = 160
 
 function layoutNodesByFlow(draft: DraftOntology) {
   const graph = new dagre.graphlib.Graph()
@@ -104,8 +104,8 @@ function layoutNodesByFlow(draft: DraftOntology) {
   graph.setDefaultEdgeLabel(() => ({}))
   graph.setGraph({
     rankdir: 'LR',
-    nodesep: 60,
-    ranksep: 140,
+    nodesep: 96,
+    ranksep: 180,
     marginx: 40,
     marginy: 40,
     ranker: 'network-simplex',
@@ -174,6 +174,24 @@ function buildPrompt(scenario: string) {
       'Edge data may contain only: weight, polarity, confidence. Allowed polarity values: positive, negative, mixed.',
       'Each node must include: id, type, label, optional position, and data.',
       'Each edge must include: id, source, target, type, and data.',
+      'Variables must match exactly: { id, key, label, ownerId?, distribution }.',
+      'Distribution kinds are fixed, uniform, normal, categorical. If unsure, leave variables empty.',
+      'Categorical distributions must use options, not values/weights.',
+      'Valid categorical example: {"kind":"categorical","options":[{"label":"current","p":0.5},{"label":"discounted","p":0.5}]}',
+      'Do not use keys named values or weights inside distribution.',
+      'Actors must match exactly: { actorId, goals, constraints, actionSpace, riskTolerance?, timeHorizonDays? }. If unsure, leave actors empty.',
+      'Events must match exactly: { id, label, description?, timestamp, effects? }. If unsure, leave events empty.',
+      'Assumptions must be objects like { id, label, confidence? }. Do not return plain strings. If unsure, leave assumptions empty.',
+      'Do not return arrays of strings for actors, events, or assumptions.',
+      'Do not invent partial schemas such as variable objects with name/description only.',
+      'Actor goals must be objects like [{ "label": "Preserve margin", "weight": 0.8 }], not strings.',
+      'Event timestamps must be integer unix milliseconds, not ISO strings.',
+      'Event effects must be objects like [{ "targetType": "node", "targetId": "shop-a", "delta": 0.2 }], not plain strings.',
+      'Example empty-safe top-level shape: {"nodes":[],"edges":[],"variables":[],"actors":[],"events":[],"assumptions":[]}.',
+      'Example variable: {"id":"price-a","key":"price_a","label":"Price A","ownerId":"shop-a","distribution":{"kind":"fixed","value":3.5}}',
+      'Example actor: {"actorId":"shop-a","goals":[{"label":"Preserve profit","weight":0.9}],"constraints":["Avoid price war"],"actionSpace":["Cut prices","Hold prices"],"riskTolerance":0.4,"timeHorizonDays":7}',
+      'Example event: {"id":"event-1","label":"Price cut announced","timestamp":1700000000000,"effects":[{"targetType":"node","targetId":"price-cut-a","set":true}]}',
+      'Example assumption: {"id":"assumption-1","label":"Customers are price-sensitive","confidence":0.8}',
       'Use 3 to 12 nodes unless the scenario clearly requires more.',
       'Keep ids stable, lowercase, and hyphenated.',
       'Do not use custom edge types like action or causal.',
@@ -333,6 +351,15 @@ export class WorldCreationService {
                 'Allowed edge types: influences, competes_with, supports, constrains, depends_on, observes, causes.',
                 'Node data may contain only: description, attributes, confidence, observed.',
                 'Edge data may contain only: weight, polarity, confidence. Allowed polarity values: positive, negative, mixed.',
+                'Variables must match exactly: { id, key, label, ownerId?, distribution }. If unsure, use an empty array.',
+                'Categorical distributions must use options, not values/weights.',
+                'Do not use keys named values or weights inside distribution.',
+                'Actors must match exactly: { actorId, goals, constraints, actionSpace, riskTolerance?, timeHorizonDays? }. If unsure, use an empty array.',
+                'Events must match exactly: { id, label, description?, timestamp, effects? }. If unsure, use an empty array.',
+                'Assumptions must be objects like { id, label, confidence? }. Do not return plain strings. If unsure, use an empty array.',
+                'Actor goals must be objects with label and weight, not strings.',
+                'Event timestamps must be integer unix milliseconds, not ISO strings.',
+                'Event effects must be typed target objects, not plain strings.',
                 'Fix the JSON below so it validates. Keep the same scenario meaning, but remove unsupported fields and map unsupported edge types to the nearest allowed type.',
                 '',
                 'Validation issues:',

@@ -43,10 +43,6 @@ export function OnticApp() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <ShellMetric
-                label="Access"
-                value={hasOpenRouterKey ? 'Parser ready' : 'Setup required'}
-              />
               <button
                 type="button"
                 onClick={() => setCreateWorldOpen(true)}
@@ -77,7 +73,7 @@ export function OnticApp() {
           </div>
         ) : null}
 
-        <main className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <main className="grid min-h-0 flex-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <GraphCanvas />
           <RightPanel />
         </main>
@@ -93,20 +89,6 @@ export function OnticApp() {
         required={setupRequired}
         onClose={() => setSettingsOpen(false)}
       />
-    </div>
-  )
-}
-
-type ShellMetricProps = {
-  label: string
-  value: string
-}
-
-function ShellMetric({ label, value }: ShellMetricProps) {
-  return (
-    <div className="shell-card rounded-[1.25rem] px-3.5 py-2.5">
-      <p className="shell-label text-[0.62rem]">{label}</p>
-      <p className="mt-1 whitespace-nowrap text-sm font-medium text-[var(--color-text)]">{value}</p>
     </div>
   )
 }

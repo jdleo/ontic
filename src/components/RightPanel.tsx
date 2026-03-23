@@ -6,13 +6,13 @@ import { VersionHistoryPanel } from './VersionHistoryPanel'
 
 export function RightPanel() {
   return (
-    <aside className="shell-panel flex min-h-[540px] flex-col gap-4 rounded-[2rem] p-4">
-      <div className="grid min-h-0 flex-1 gap-4">
-        <VersionHistoryPanel />
+    <aside className="shell-panel self-start rounded-[2rem] p-4">
+      <div className="grid gap-4">
         <QueryPanel />
+        <ResultsPanel />
         <MutationPanel />
         <InspectPanel />
-        <ResultsPanel />
+        <VersionHistoryPanel />
       </div>
     </aside>
   )
