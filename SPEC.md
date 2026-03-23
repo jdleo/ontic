@@ -47,7 +47,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [x] Settings bootstrap for API key and model tiers
 - [x] OpenRouter wrapper with LOW, MEDIUM, HIGH model routing
 - [x] Situation parsing flow
-- [ ] Query parsing and simulation flow
+- [x] Query parsing and simulation flow
 - [x] Mutation parsing and version creation flow
 - [x] Version history and visual diffs
 - [x] Import and export
@@ -96,7 +96,7 @@ These live in `src/types` and must remain validated before entering app state.
 - [x] Typed persistence helpers
 - [x] Restore last opened world state
 - [x] JSON import and export
-- [ ] Clear local data from settings
+- [x] Clear local data from settings
 
 ## Validation rules
 
@@ -104,7 +104,7 @@ These live in `src/types` and must remain validated before entering app state.
 - [x] Edge endpoint existence enforced
 - [x] Query result probabilities checked for sensible totals
 - [x] Mutation patch target validity helpers
-- [ ] Invalid LLM output retry and repair UX
+- [x] Invalid LLM output retry and repair UX
 
 ## UX flows
 
@@ -118,12 +118,12 @@ These live in `src/types` and must remain validated before entering app state.
 
 ### Ask question
 
-- [ ] Enter natural-language question
-- [ ] Parse to structured query
-- [ ] Run simulation worker
-- [ ] Persist query result
-- [ ] Explain result
-- [ ] Highlight key drivers
+- [x] Enter natural-language question
+- [x] Parse to structured query
+- [x] Run simulation worker
+- [x] Persist query result
+- [x] Explain result
+- [x] Highlight key drivers
 
 ### Mutate world
 

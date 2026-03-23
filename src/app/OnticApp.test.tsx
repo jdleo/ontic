@@ -31,6 +31,7 @@ function createPersistenceMocks() {
     saveQuery: vi.fn().mockResolvedValue(undefined),
     saveMutation: vi.fn().mockResolvedValue(undefined),
     importWorldBundle: vi.fn().mockResolvedValue(undefined),
+    clearAllData: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }

@@ -15,18 +15,21 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
   const modelTierConfig = useWorldStore((state) => state.modelTierConfig)
   const graphPreferences = useWorldStore((state) => state.graphPreferences)
   const loadingBootstrap = useWorldStore((state) => state.loading.bootstrap)
+  const loadingSettings = useWorldStore((state) => state.loading.settings)
   const setOpenRouterApiKey = useWorldStore((state) => state.setOpenRouterApiKey)
   const removeOpenRouterApiKey = useWorldStore((state) => state.removeOpenRouterApiKey)
   const setModelTierConfig = useWorldStore((state) => state.setModelTierConfig)
   const setGraphPreferences = useWorldStore((state) => state.setGraphPreferences)
   const exportCurrentWorld = useWorldStore((state) => state.exportCurrentWorld)
   const importWorldFromJson = useWorldStore((state) => state.importWorldFromJson)
+  const clearLocalData = useWorldStore((state) => state.clearLocalData)
 
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [draftConfig, setDraftConfig] = useState<ModelTierConfig>(modelTierConfig)
   const [draftGraphPreferences, setDraftGraphPreferences] = useState<GraphPreferences>(graphPreferences)
   const [includeHistoryInExport, setIncludeHistoryInExport] = useState(true)
   const [dataTransferMessage, setDataTransferMessage] = useState<string | null>(null)
+  const [confirmClearLocalData, setConfirmClearLocalData] = useState(false)
 
   useEffect(() => {
     setDraftConfig(modelTierConfig)
@@ -107,6 +110,17 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
         : 'Import failed. Check the validation message and try a different file.',
     )
     event.target.value = ''
+  }
+
+  async function handleClearLocalData() {
+    await clearLocalData()
+    setApiKeyInput('')
+    setConfirmClearLocalData(false)
+    setDataTransferMessage('Cleared all local worlds, history, settings, and stored API keys on this device.')
+
+    if (!required) {
+      onClose()
+    }
   }
 
   return (
@@ -325,6 +339,46 @@ export function SettingsModal({ open, required = false, onClose }: SettingsModal
               {dataTransferMessage ? (
                 <p className="shell-copy mt-3 text-sm">{dataTransferMessage}</p>
               ) : null}
+            </section>
+          ) : null}
+
+          {!required ? (
+            <section className="shell-card rounded-[1.75rem] border border-red-400/18 px-5 py-5">
+              <div>
+                <p className="shell-label text-[0.68rem]">Danger zone</p>
+                <h3 className="mt-2 text-base font-medium tracking-[var(--tracking-tight)] text-[var(--color-text)]">
+                  Clear local data
+                </h3>
+                <p className="shell-copy mt-2 text-sm">
+                  Removes all saved worlds, versions, queries, mutations, settings, and the stored OpenRouter key from this browser profile.
+                </p>
+              </div>
+
+              <label className="mt-4 flex items-start gap-3 rounded-[1.2rem] border border-red-400/16 bg-red-400/6 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={confirmClearLocalData}
+                  onChange={(event) => setConfirmClearLocalData(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border border-[var(--color-input)] bg-transparent"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[var(--color-text)]">I understand this cannot be undone</p>
+                  <p className="shell-copy mt-1 text-sm">
+                    Export any worlds you want to keep before clearing local data.
+                  </p>
+                </div>
+              </label>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void handleClearLocalData()}
+                  disabled={!confirmClearLocalData || loadingSettings}
+                  className="rounded-[1rem] border border-red-300/24 bg-red-400/12 px-4 py-2 text-sm text-red-100 transition hover:bg-red-400/18 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loadingSettings ? 'Clearing...' : 'Clear local data'}
+                </button>
+              </div>
             </section>
           ) : null}
         </form>
