@@ -5,6 +5,7 @@ import {
   DEFAULT_MODEL_TIER_CONFIG,
   OPENROUTER_API_KEY_STORAGE_KEY,
 } from './worldStore'
+import { createExportedWorldBundle } from '../lib/importExport'
 import type { GraphPreferences, ModelTierConfig, PersistedWorldBundle } from '../types'
 
 function createMemoryStorage(initial: Record<string, string> = {}) {
@@ -26,12 +27,14 @@ function createMemoryStorage(initial: Record<string, string> = {}) {
 function createPersistenceMocks(bundle?: PersistedWorldBundle) {
   return {
     loadLastOpenedWorldBundle: vi.fn().mockResolvedValue(bundle),
+    loadWorldBundle: vi.fn().mockResolvedValue(bundle),
     setLastOpenedWorldId: vi.fn().mockResolvedValue(undefined),
     createWorld: vi.fn().mockResolvedValue(undefined),
     saveWorld: vi.fn().mockResolvedValue(undefined),
     saveVersion: vi.fn().mockResolvedValue(undefined),
     saveQuery: vi.fn().mockResolvedValue(undefined),
     saveMutation: vi.fn().mockResolvedValue(undefined),
+    importWorldBundle: vi.fn().mockResolvedValue(undefined),
     saveSetting: vi.fn().mockResolvedValue(undefined),
     getSetting: vi.fn().mockResolvedValue(undefined),
   }
@@ -533,5 +536,27 @@ describe('worldStore', () => {
     expect(store.getState().currentVersion?.patchSummary).toBe('Escalation update')
     expect(store.getState().currentVersion?.ontology.nodes.some((node) => node.id === 'event-2')).toBe(true)
     expect(persistence.saveMutation).toHaveBeenCalled()
+  })
+
+  it('imports a validated exported bundle as a new local world copy', async () => {
+    const persistence = createPersistenceMocks()
+    const store = createWorldStore({
+      persistence,
+      storage: createMemoryStorage(),
+      worldCreation: createWorldCreationMocks(),
+      simulation: createSimulationMocks(),
+      queryFlow: createQueryFlowMocks(),
+      mutationFlow: createMutationFlowMocks(),
+    })
+
+    const exported = createExportedWorldBundle(createBundle(), { includeHistory: true })
+    const imported = await store.getState().importWorldFromJson({
+      text: JSON.stringify(exported),
+    })
+
+    expect(imported).toBe(true)
+    expect(persistence.importWorldBundle).toHaveBeenCalled()
+    expect(store.getState().currentWorld?.id).not.toBe('world-1')
+    expect(store.getState().versions).toHaveLength(2)
   })
 })

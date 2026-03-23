@@ -28,6 +28,10 @@ export type SaveMutationInput = {
   world: World
 }
 
+export type ImportWorldBundleInput = {
+  bundle: PersistedWorldBundle
+}
+
 export class PersistenceRepository {
   private readonly database: OnticDatabase
 
@@ -75,6 +79,29 @@ export class PersistenceRepository {
         await this.database.mutations.put(mutation)
         await this.database.versions.put(version)
         await this.database.worlds.put(world)
+      },
+    )
+  }
+
+  async importWorldBundle({ bundle }: ImportWorldBundleInput): Promise<void> {
+    await this.database.transaction(
+      'rw',
+      this.database.tables,
+      async () => {
+        await this.database.worlds.put(bundle.world)
+        await this.database.versions.bulkPut(bundle.versions)
+
+        if (bundle.queries?.length) {
+          await this.database.queries.bulkPut(bundle.queries)
+        }
+
+        if (bundle.queryResults?.length) {
+          await this.database.queryResults.bulkPut(bundle.queryResults)
+        }
+
+        if (bundle.mutations?.length) {
+          await this.database.mutations.bulkPut(bundle.mutations)
+        }
       },
     )
   }

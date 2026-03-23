@@ -50,7 +50,7 @@ The ontology is the source of truth. The simulation engine computes outcomes. LL
 - [ ] Query parsing and simulation flow
 - [x] Mutation parsing and version creation flow
 - [x] Version history and visual diffs
-- [ ] Import and export
+- [x] Import and export
 
 ## Data model
 
@@ -95,7 +95,7 @@ These live in `src/types` and must remain validated before entering app state.
 - [x] IndexedDB schema for worlds, versions, queries, query results, mutations, and settings
 - [x] Typed persistence helpers
 - [x] Restore last opened world state
-- [ ] JSON import and export
+- [x] JSON import and export
 - [ ] Clear local data from settings
 
 ## Validation rules
