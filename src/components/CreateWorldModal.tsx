@@ -18,6 +18,7 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
   const [scenario, setScenario] = useState('')
   const [researchTopic, setResearchTopic] = useState('')
   const [researchOpen, setResearchOpen] = useState(false)
+  const [normalizeAndRepair, setNormalizeAndRepair] = useState(true)
 
   if (!open) {
     return null
@@ -33,6 +34,7 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
     const created = await createWorldFromScenario({
       name: worldName,
       scenario,
+      normalizeAndRepair,
     })
 
     if (!created) {
@@ -47,6 +49,7 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
     setScenario('')
     setResearchTopic('')
     setResearchOpen(false)
+    setNormalizeAndRepair(true)
     clearWorldCreationError()
     onClose()
   }
@@ -157,6 +160,21 @@ export function CreateWorldModal({ open, onClose }: CreateWorldModalProps) {
                 placeholder="Describe the actors, constraints, resources, events, and likely outcomes."
                 className="mt-2 w-full resize-none rounded-[1.2rem] border border-[var(--color-input)] bg-white/6 px-4 py-3 text-sm leading-6 text-[var(--color-text)] outline-none transition focus:border-[rgb(255_255_255_/_0.28)]"
               />
+            </label>
+
+            <label className="mt-4 flex items-start gap-3 rounded-[1rem] border border-white/8 bg-white/4 px-4 py-3 text-sm text-white/78">
+              <input
+                type="checkbox"
+                checked={normalizeAndRepair}
+                onChange={(event) => setNormalizeAndRepair(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Run normalization and repair after parsing.
+                <span className="mt-1 block text-xs text-white/56">
+                  Optional medium-tier cleanup that merges obvious duplicates, normalizes relations, and records a cleanup summary.
+                </span>
+              </span>
             </label>
 
             {worldCreationError ? (

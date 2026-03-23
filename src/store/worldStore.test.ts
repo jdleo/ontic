@@ -59,6 +59,7 @@ function createWorldCreationMocks() {
       },
       rawText: '{"nodes":[]}',
       model: 'heavy-model',
+      normalizationSummary: 'Merged duplicate labels and normalized relation types.',
     }),
   }
 }
@@ -415,12 +416,13 @@ describe('worldStore', () => {
     expect(created).toBe(true)
     expect(worldCreation.createInitialOntology).toHaveBeenCalledWith(
       'Two governments compete over semiconductor exports.',
-      { graphPreferences: DEFAULT_GRAPH_PREFERENCES },
+      { graphPreferences: DEFAULT_GRAPH_PREFERENCES, normalizeAndRepair: true },
     )
     expect(persistence.createWorld).toHaveBeenCalledTimes(1)
     expect(store.getState().currentWorld?.name).toBe('Trade conflict')
     expect(store.getState().versions).toHaveLength(1)
-    expect(store.getState().currentVersion?.patchSummary).toBe('Initial world snapshot')
+    expect(store.getState().currentVersion?.patchSummary).toBe('Initial world snapshot · cleanup applied')
+    expect(store.getState().worldCreationSummary).toContain('Merged duplicate labels')
   })
 
   it('surfaces parser failures without corrupting state', async () => {
